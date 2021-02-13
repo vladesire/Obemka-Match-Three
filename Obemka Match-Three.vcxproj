@@ -157,12 +157,14 @@
   <ItemGroup>
     <ClCompile Include="Animation.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Splash.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animation.h" />
     <ClInclude Include="Gameplay.h" />
     <ClInclude Include="MainMenu.h" />
     <ClInclude Include="ResLoader.h" />
+    <ClInclude Include="Splash.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

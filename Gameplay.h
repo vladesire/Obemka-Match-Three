@@ -32,9 +32,10 @@ void ___print_tiles(char(&tiles)[8][8])
 class MovesGame
 {
 public:
-	MovesGame(sf::RenderWindow &window_, const sf::Font *fonts, const sf::Texture *textures, const sf::SoundBuffer *soundbuffers, sf::Music *music)
+	MovesGame(sf::RenderWindow &window_, const sf::Font *fonts, const sf::Texture *textures, const sf::SoundBuffer *soundbuffers, sf::Music *music) 
+		: window{window_}
 	{
-		window = &window_;
+		//window = &window_;
 
 		tile_texture = textures;
 		gameover_texture = textures+1;
@@ -77,11 +78,11 @@ public:
 
 		header.setString("MovesGame setting");
 		target.setString("Target\n" + std::to_string(itarget));
-		gameovertext.setString("Game Over");
+		gameovertext.setString("Press any key");
 
 		soundtrack = music;
-		(*soundtrack).setLoop(true);
-		(*soundtrack).setVolume(50);
+		soundtrack->setLoop(true);
+		soundtrack->setVolume(50);
 
 		kizhak.setBuffer(soundbuffers[13]);
 
@@ -112,16 +113,19 @@ public:
 
 	int play()
 	{
-		(*soundtrack).play();
+		soundtrack->play();
+	
+		std::chrono::system_clock::time_point start_time;
+		std::chrono::system_clock::duration delta_time;
 
-		while ((*window).isOpen())
+		while (true)
 		{
 			start_time = std::chrono::system_clock::now();
 
-			(*window).clear(sf::Color(96, 73, 82));
+			window.clear(sf::Color(96, 73, 82));
 
 			sf::Event event;
-			while ((*window).pollEvent(event))
+			while (window.pollEvent(event))
 			{
 				if (event.type == sf::Event::Closed || event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
 				{
@@ -132,7 +136,7 @@ public:
 				{
 					if (selected)
 					{
-						tilearrpos(newpos, sf::Mouse::getPosition(*window));
+						tilearrpos(newpos, sf::Mouse::getPosition(window));
 						auto diff = newpos - selpos;
 
 						if (newpos.x == -1)
@@ -155,14 +159,17 @@ public:
 					}
 					else
 					{
-						tilearrpos(selpos, sf::Mouse::getPosition(*window));
+						tilearrpos(selpos, sf::Mouse::getPosition(window));
 						selected = (selpos.x != -1);
 					}
 
 				}
 				else if ((!imoves && !(swap_animation || disappear_animation || drop_animation)) && (event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::KeyPressed))
 				{
+					soundtrack->stop();
 					return 1;
+
+
 					// TODO: Refactor condition
 				}
 
@@ -171,7 +178,7 @@ public:
 			if (selected && sf::Mouse::isButtonPressed(sf::Mouse::Left))
 			{
 
-				tilearrpos(newpos, sf::Mouse::getPosition(*window));
+				tilearrpos(newpos, sf::Mouse::getPosition(window));
 
 				auto diff = newpos - selpos;
 
@@ -283,17 +290,17 @@ public:
 
 
 
-			(*window).draw(lines);
-			(*window).draw(header);
-			(*window).draw(score);
-			(*window).draw(moves);
-			(*window).draw(target);
+			window.draw(lines);
+			window.draw(header);
+			window.draw(score);
+			window.draw(moves);
+			window.draw(target);
 
 			for (size_t i = 0; i < 8; i++)
 			{
 				for (size_t k = 0; k < 8; k++)
 				{
-					(*window).draw(main_spr[i][k]);
+					window.draw(main_spr[i][k]);
 				}
 			}
 
@@ -302,17 +309,20 @@ public:
 
 				if (gameover_once)
 				{
-					(*soundtrack).setVolume(10);
+					soundtrack->setVolume(10);
 					std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 					kizhak.play();
 					gameover_once = false;
 				}
 
-				(*window).draw(gameover);
-				//window.draw(gameovertext);
+				window.draw(gameover);
+
+
+
+				window.draw(gameovertext);
 			}
 
-			(*window).display();
+			window.display();
 
 
 			delta_time = std::chrono::system_clock::now() - start_time;
@@ -330,7 +340,7 @@ private:
 		Tiles codes: 0 - Obeme, 1 - Gorin, 2 - Povar, 3 - Pocik, 4 - Golomyanov
 	*/
 
-	sf::RenderWindow *window;
+	sf::RenderWindow &window;
 
 	const int height = 640, width = 740, headw = 692, headh = 80, sidew = 160, sideh = 532, mainsz = 532, mainpad = 12, itempad = 4, tilesz = 60;
 	const int whpad = 14, wwpad = 24; // window height/width padding
@@ -368,8 +378,6 @@ private:
 
 	Animation anim, anim_2; // to handle two different collective animations; anim_2 for disappear, second swap
 
-	std::chrono::system_clock::time_point start_time;
-	std::chrono::system_clock::duration delta_time;
 
 
 	void init_lines(sf::VertexArray &lines)

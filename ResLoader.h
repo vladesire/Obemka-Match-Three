@@ -4,44 +4,53 @@
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
 
+#include <iostream>
+
 class ResLoader
 {
 public:
-	ResLoader()
+	void load()
 	{
-		fonts = new sf::Font[2];
-		
-		fonts[0].loadFromFile("Fonts/RobotoRegular.ttf");
-		fonts[1].loadFromFile("Fonts/RobotoBold.ttf");
+		if (!loaded)
+		{
+			fonts = new sf::Font[2];
+
+			fonts[0].loadFromFile("Fonts/RobotoRegular.ttf");
+			fonts[1].loadFromFile("Fonts/RobotoBold.ttf");
 
 
-		music = new sf::Music[1];
-		
-		music[0].openFromFile("Sounds/soundtrack.wav");
+			music = new sf::Music[2];
+
+			music[0].openFromFile("Sounds/soundtrack.wav");
+			music[1].openFromFile("Sounds/main_menu.wav");
+			music[0].setLoop(true);
+			music[1].setLoop(true);
 
 
-		soundbuffers = new sf::SoundBuffer[14];
-		
-		soundbuffers[0].loadFromFile("Sounds/obeme_1.wav");
-		soundbuffers[1].loadFromFile("Sounds/obeme_2.wav");
-		soundbuffers[2].loadFromFile("Sounds/obeme_3.wav");
-		soundbuffers[3].loadFromFile("Sounds/obeme_4.wav");
-		soundbuffers[4].loadFromFile("Sounds/obeme_5.wav");
-		soundbuffers[5].loadFromFile("Sounds/gorin_1.wav");
-		soundbuffers[6].loadFromFile("Sounds/povar_1.wav");
-		soundbuffers[7].loadFromFile("Sounds/pocik_1.wav");
-		soundbuffers[8].loadFromFile("Sounds/sasxri_1.wav");
-		soundbuffers[9].loadFromFile("Sounds/sasxri_2.wav");
-		soundbuffers[10].loadFromFile("Sounds/sasxri_3.wav");
-		soundbuffers[11].loadFromFile("Sounds/sasxri_4.wav");
-		soundbuffers[12].loadFromFile("Sounds/sasxri_5.wav");
-		soundbuffers[13].loadFromFile("Sounds/kizhak.wav");
+			soundbuffers = new sf::SoundBuffer[15];
+
+			soundbuffers[0].loadFromFile("Sounds/obeme_1.wav");
+			soundbuffers[1].loadFromFile("Sounds/obeme_2.wav");
+			soundbuffers[2].loadFromFile("Sounds/obeme_3.wav");
+			soundbuffers[3].loadFromFile("Sounds/obeme_4.wav");
+			soundbuffers[4].loadFromFile("Sounds/obeme_5.wav");
+			soundbuffers[5].loadFromFile("Sounds/gorin_1.wav");
+			soundbuffers[6].loadFromFile("Sounds/povar_1.wav");
+			soundbuffers[7].loadFromFile("Sounds/pocik_1.wav");
+			soundbuffers[8].loadFromFile("Sounds/sasxri_1.wav");
+			soundbuffers[9].loadFromFile("Sounds/sasxri_2.wav");
+			soundbuffers[10].loadFromFile("Sounds/sasxri_3.wav");
+			soundbuffers[11].loadFromFile("Sounds/sasxri_4.wav");
+			soundbuffers[12].loadFromFile("Sounds/sasxri_5.wav");
+			soundbuffers[13].loadFromFile("Sounds/kizhak.wav");
 
 
-		textures = new sf::Texture[2];
+			textures = new sf::Texture[2];
 
-		textures[0].loadFromFile("Textures/tiles.png");
-		textures[1].loadFromFile("Textures/gameover.jpg");
+			textures[0].loadFromFile("Textures/tiles.png");
+			textures[1].loadFromFile("Textures/gameover.jpg");
+
+		}
 	}
 
 	const sf::Font *get_fonts()
@@ -77,6 +86,7 @@ private:
 	sf::Music *music;
 	sf::SoundBuffer *soundbuffers;
 	sf::Texture *textures;
+	bool loaded = false;
 };
 
 
