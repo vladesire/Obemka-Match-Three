@@ -10,7 +10,7 @@
 
 #include "Animation.h"
 
-
+/*
 //FOR DEBUG ONLY!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #include <iostream>
 void ___print_tiles(char(&tiles)[8][8])
@@ -27,320 +27,30 @@ void ___print_tiles(char(&tiles)[8][8])
 	}
 }
 //FOR DEBUG ONLY!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+*/
 
 class MovesGame
 {
 public:
-	MovesGame(sf::RenderWindow &window_, const sf::Font *fonts, const sf::Texture *textures, const sf::SoundBuffer *soundbuffers, sf::Music *music) 
-		: window{window_}
+	MovesGame(sf::RenderWindow &window_, const sf::Font *fonts_, const sf::Texture *textures, const sf::SoundBuffer *soundbuffers, sf::Music *music) 
+		: window{window_}, fonts{fonts_}
 	{
-		//window = &window_;
-
-		tile_texture = textures;
-		gameover_texture = textures+1;
-
-		init_lines(lines);
-
-		gameover.setScale(.498f, .525f);
-		gameover.setPosition(wwpad + sidew + mainpad, whpad + headh + mainpad);
-		gameover.setTexture(*gameover_texture);
-
-		generate_tiles(tiles);
-	
-		generate_main(main_spr, tiles, *tile_texture);
-
-
-		header.setFont(fonts[1]);
-		score.setFont(fonts[0]);
-		moves.setFont(fonts[0]);
-		target.setFont(fonts[0]);
-		gameovertext.setFont(fonts[1]);
-
-		header.setFillColor(sf::Color(169, 156, 173));
-		score.setFillColor(sf::Color(169, 156, 173));
-		moves.setFillColor(sf::Color(169, 156, 173));
-		target.setFillColor(sf::Color(169, 156, 173));
-		gameovertext.setFillColor(sf::Color::Red);
-
-		header.setCharacterSize(40);
-		score.setCharacterSize(30);
-		moves.setCharacterSize(30);
-		target.setCharacterSize(30);
-		gameovertext.setCharacterSize(50);
-
-
-		header.setPosition(wwpad + 5, whpad + 20);
-		score.setPosition(wwpad + 5, whpad + headh);
-		moves.setPosition(wwpad + 5, whpad + headh + mainsz / 3);
-		target.setPosition(wwpad + 5, whpad + headh + mainsz * 2 / 3);
-		gameovertext.setPosition(wwpad + sidew + mainpad + 5, whpad + headh + mainpad + 5);
-
-		header.setString("MovesGame setting");
-		target.setString("Target\n" + std::to_string(itarget));
-		gameovertext.setString("Press any key");
-
-		soundtrack = music;
-		soundtrack->setLoop(true);
-		soundtrack->setVolume(50);
-
-		kizhak.setBuffer(soundbuffers[13]);
-
-
-		// TODO: fix when everyone will have 5 sounds!
-		for (size_t k = 0; k < 5; k++)
-		{
-			sounds[0][k].setBuffer(soundbuffers[k]);
-		}
-		for (size_t k = 0; k < 5; k++)
-		{
-			sounds[1][k].setBuffer(soundbuffers[5]);
-		}
-		for (size_t k = 0; k < 5; k++)
-		{
-			sounds[2][k].setBuffer(soundbuffers[6]);
-		}
-		for (size_t k = 0; k < 5; k++)
-		{
-			sounds[3][k].setBuffer(soundbuffers[7]);
-		}
-		for (size_t k = 0; k < 5; k++)
-		{
-			sounds[4][k].setBuffer(soundbuffers[8+k]);
-		}
-		// END-TODO
+		initialize(textures, soundbuffers, music);
 	}
 
-	int play()
-	{
-		soundtrack->play();
-	
-		std::chrono::system_clock::time_point start_time;
-		std::chrono::system_clock::duration delta_time;
-
-		while (true)
-		{
-			start_time = std::chrono::system_clock::now();
-
-			window.clear(sf::Color(96, 73, 82));
-
-			sf::Event event;
-			while (window.pollEvent(event))
-			{
-				if (event.type == sf::Event::Closed || event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
-				{
-					// TODO: Ask before closing
-					return 0;
-				}
-				else if (!(swap_animation || disappear_animation || drop_animation) && imoves && event.type == sf::Event::MouseButtonPressed)
-				{
-					if (selected)
-					{
-						tilearrpos(newpos, sf::Mouse::getPosition(window));
-						auto diff = newpos - selpos;
-
-						if (newpos.x == -1)
-						{
-							selected = false;
-						}
-						else if (diff.x == 0 && abs(diff.y) == 1 || diff.y == 0 && abs(diff.x) == 1)
-						{
-							sounds[tiles[selpos.y][selpos.x]][rand() % 5].play();
-							swap_animation = 2;
-							selected = false;
-							init_swap(anim, anim_2, main_spr, newpos, selpos);
-							--imoves;
-						}
-						else
-						{
-							selpos = newpos;
-						}
-
-					}
-					else
-					{
-						tilearrpos(selpos, sf::Mouse::getPosition(window));
-						selected = (selpos.x != -1);
-					}
-
-				}
-				else if ((!imoves && !(swap_animation || disappear_animation || drop_animation)) && (event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::KeyPressed))
-				{
-					soundtrack->stop();
-					return 1;
-
-
-					// TODO: Refactor condition
-				}
-
-			}
-
-			if (selected && sf::Mouse::isButtonPressed(sf::Mouse::Left))
-			{
-
-				tilearrpos(newpos, sf::Mouse::getPosition(window));
-
-				auto diff = newpos - selpos;
-
-				if (diff.x == 0 && abs(diff.y) == 1 || diff.y == 0 && abs(diff.x) == 1)
-				{
-					sounds[tiles[selpos.y][selpos.x]][rand() % 5].play();
-					swap_animation = 2;
-					selected = false;
-					init_swap(anim, anim_2, main_spr, newpos, selpos);
-					--imoves;
-				}
-
-			}
-
-			if (swap_animation)
-			{
-				if (!(anim.apply() && anim_2.apply()))
-				{
-					auto temp = tiles[selpos.y][selpos.x];
-					tiles[selpos.y][selpos.x] = tiles[newpos.y][newpos.x];
-					tiles[newpos.y][newpos.x] = temp;
-
-					generate_main(main_spr, tiles, *tile_texture);
-
-					state_changed = true;
-
-					if (analyze_tiles(tiles))
-					{
-						swap_animation = 0;
-						disappear_animation = 1;
-
-						init_disappear(anim_2, main_spr, tiles, iscore);
-
-
-						// TODO: REGENERATE -1 FIRST. IT WON'T WORK OTHERWISE.
-
-						// Play disappear animation: scale(0.9, 0.9) + setOrignin(30, 30)
-						// then regenerate
-						// only then play fall animation pop up from the middle
-						// then try analyze again. Repeat till no more 3-in-line
-					}
-					else
-					{
-						if (swap_animation == 2)
-						{
-
-							reverse_swap(anim, anim_2);
-						}
-						--swap_animation;
-					}
-
-				}
-			}
-			else if (disappear_animation)
-			{
-				if (!(anim_2.apply())) // anim_2 because I will need it to restore tiles after drop
-				{
-					disappear_animation = 0;
-					drop_animation = 1;
-					state_changed = true;
-
-					copy_tiles(tiles_temp, tiles);
-
-					init_drop(anim, main_spr, tiles_temp);
-
-				}
-			}
-			else if (drop_animation)
-			{
-				if (true/*!(anim.apply())*/) // For now, without animation
-				{
-					drop_animation = 0;
-
-					for (size_t i = 0; i < 8; i++) // Restore disappeared tiles
-					{
-						for (size_t k = 0; k < 8; k++)
-						{
-							if (tiles[i][k] == -1) //using old values
-							{
-								main_spr[i][k].setScale(1, 1);
-								main_spr[i][k].setOrigin(0, 0);
-							}
-						}
-					}
-
-					copy_tiles(tiles, tiles_temp);
-
-					regenerate_tiles(tiles);
-
-					generate_main(main_spr, tiles, *tile_texture);
-
-					if (analyze_tiles(tiles))
-					{
-						disappear_animation = 1;
-
-						init_disappear(anim_2, main_spr, tiles, iscore);
-
-					}
-
-				}
-			}
-
-			if (state_changed)
-			{
-				moves.setString("Moves\n" + std::to_string(imoves));
-				score.setString("Score\n" + std::to_string(iscore));
-				state_changed = false;
-			}
-
-
-
-			window.draw(lines);
-			window.draw(header);
-			window.draw(score);
-			window.draw(moves);
-			window.draw(target);
-
-			for (size_t i = 0; i < 8; i++)
-			{
-				for (size_t k = 0; k < 8; k++)
-				{
-					window.draw(main_spr[i][k]);
-				}
-			}
-
-			if (!imoves && !(swap_animation || disappear_animation || drop_animation))
-			{
-
-				if (gameover_once)
-				{
-					soundtrack->setVolume(10);
-					std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-					kizhak.play();
-					gameover_once = false;
-				}
-
-				window.draw(gameover);
-
-
-
-				window.draw(gameovertext);
-			}
-
-			window.display();
-
-
-			delta_time = std::chrono::system_clock::now() - start_time;
-
-			std::this_thread::sleep_for(std::chrono::microseconds(8333 - std::chrono::duration_cast<std::chrono::microseconds>(delta_time).count()));
-
-			//std::cout << std::chrono::duration_cast<std::chrono::microseconds>(delta_time).count() << "\n";
-		}
-
-		return 1;
-	}
+	int play();
 
 private:
 	/*
 		Tiles codes: 0 - Obeme, 1 - Gorin, 2 - Povar, 3 - Pocik, 4 - Golomyanov
 	*/
 
+	int max_score;
+
+	void initialize(const sf::Texture *textures, const sf::SoundBuffer *soundbuffers, sf::Music *music);
+
 	sf::RenderWindow &window;
+	const sf::Font *fonts;
 
 	const int height = 640, width = 740, headw = 692, headh = 80, sidew = 160, sideh = 532, mainsz = 532, mainpad = 12, itempad = 4, tilesz = 60;
 	const int whpad = 14, wwpad = 24; // window height/width padding
@@ -362,7 +72,7 @@ private:
 	sf::VertexArray lines{sf::Lines, 12};
 
 	sf::Sprite main_spr[8][8];
-	sf::Sprite gameover;
+	sf::Sprite gameover, spr_victory;
 
 	const sf::Texture *tile_texture, *gameover_texture;
 
@@ -371,9 +81,9 @@ private:
 
 	sf::Text header, score, moves, target, gameovertext;
 
-	sf::Music *soundtrack;
+	sf::Music *soundtrack, *victory;
 
-	sf::Sound kizhak;
+	sf::Sound kizhak, chetko;
 	sf::Sound sounds[5][5];
 
 	Animation anim, anim_2; // to handle two different collective animations; anim_2 for disappear, second swap
@@ -730,6 +440,7 @@ private:
 			}
 		}
 	}
+
 
 };
 

@@ -26,7 +26,7 @@ const int height = 640, width = 740;
 	Todo list:
 
 		1. Prevent kizhak from skipping (lock mouse/keyboard for 5 seconds)
-
+		2. sf::Event::MouseButtonPressed -> sf::Event::MouseButtonReleased
 */
 
 
@@ -45,6 +45,13 @@ int main()
 	
 	t.join();
 	
+
+	/*sf::Image img_cursor; // TODO cursor
+	img_cursor.loadFromFile("cursor.png");
+	sf::Cursor cursor;
+	cursor.loadFromPixels(img_cursor.getPixelsPtr(), sf::Vector2u(53, 87), sf::Vector2u(4, 3));
+	window.setMouseCursor(cursor);*/
+
 	window.setMouseCursorVisible(true); // Set in game curosor!
 
 	MainMenu main_menu {window, resloader.get_fonts(), resloader.get_music()};

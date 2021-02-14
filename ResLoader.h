@@ -19,15 +19,16 @@ public:
 			fonts[1].loadFromFile("Fonts/RobotoBold.ttf");
 
 
-			music = new sf::Music[2];
+			music = new sf::Music[3];
 
 			music[0].openFromFile("Sounds/soundtrack.wav");
 			music[1].openFromFile("Sounds/main_menu.wav");
+			music[2].openFromFile("Sounds/scorebeaten.wav");
 			music[0].setLoop(true);
 			music[1].setLoop(true);
 
 
-			soundbuffers = new sf::SoundBuffer[15];
+			soundbuffers = new sf::SoundBuffer[16];
 
 			soundbuffers[0].loadFromFile("Sounds/obeme_1.wav");
 			soundbuffers[1].loadFromFile("Sounds/obeme_2.wav");
@@ -43,12 +44,14 @@ public:
 			soundbuffers[11].loadFromFile("Sounds/sasxri_4.wav");
 			soundbuffers[12].loadFromFile("Sounds/sasxri_5.wav");
 			soundbuffers[13].loadFromFile("Sounds/kizhak.wav");
+			soundbuffers[14].loadFromFile("Sounds/chetko.wav");
 
 
-			textures = new sf::Texture[2];
+			textures = new sf::Texture[3];
 
 			textures[0].loadFromFile("Textures/tiles.png");
 			textures[1].loadFromFile("Textures/gameover.jpg");
+			textures[2].loadFromFile("Textures/chetko.jpg");
 
 		}
 	}

@@ -4,8 +4,10 @@
 #include <SFML/Graphics.hpp>
 #include <thread>
 #include <chrono>
+#include "ExitAsk.h"
 
 #include <iostream>
+
 
 class MainMenu
 {
@@ -53,10 +55,11 @@ public:
 			{
 				if (event.type == sf::Event::Closed || event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
 				{
+					if (exit_question(window, fonts))
+						return 0;
 					// TODO: Ask before closing
-					return 0;
 				}
-				else if (event.type == sf::Event::MouseButtonPressed)
+				else if (event.type == sf::Event::MouseButtonReleased)
 				{
 					int id = button_id(sf::Mouse::getPosition(window).x, sf::Mouse::getPosition(window).y);
 
@@ -76,8 +79,8 @@ public:
 							std::cout << "Settings\n"; break;
 						case 4:
 						{
-							// TODO: add Are you sure?
-							return 0;
+							if (exit_question(window, fonts))
+								return 0;
 						}
 					}
 				}
