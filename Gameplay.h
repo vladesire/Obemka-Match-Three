@@ -8,6 +8,7 @@
 #include <thread>
 #include <string>
 
+#include "ResLoader.h"
 #include "Animation.h"
 
 /*
@@ -29,13 +30,13 @@ void ___print_tiles(char(&tiles)[8][8])
 //FOR DEBUG ONLY!!!!!!!!!!!!!!!!!!!!!!!!!!!
 */
 
-class MovesGame
+class TimeGame
 {
 public:
-	MovesGame(sf::RenderWindow &window_, const sf::Font *fonts_, const sf::Texture *textures, const sf::SoundBuffer *soundbuffers, sf::Music *music) 
-		: window{window_}, fonts{fonts_}
+	TimeGame(sf::RenderWindow &window_, ResLoader &resloader_)
+		: window{window_}, resloader{resloader_}, fonts{resloader_.get_fonts()}
 	{
-		initialize(textures, soundbuffers, music);
+		initialize(resloader);
 	}
 
 	int play();
@@ -47,9 +48,10 @@ private:
 
 	int max_score;
 
-	void initialize(const sf::Texture *textures, const sf::SoundBuffer *soundbuffers, sf::Music *music);
+	void initialize(ResLoader &resloader);
 
 	sf::RenderWindow &window;
+	ResLoader &resloader;
 	const sf::Font *fonts;
 
 	const int height = 640, width = 740, headw = 692, headh = 80, sidew = 160, sideh = 532, mainsz = 532, mainpad = 12, itempad = 4, tilesz = 60;

@@ -25,8 +25,8 @@ const int height = 640, width = 740;
 /*
 	Todo list:
 
-		1. Prevent kizhak from skipping (lock mouse/keyboard for 5 seconds)
-		2. sf::Event::MouseButtonPressed -> sf::Event::MouseButtonReleased
+		1. sf::Event::MouseButtonPressed -> sf::Event::MouseButtonReleased
+		2. In every render cycle: first draw, then update! 
 */
 
 
@@ -54,13 +54,13 @@ int main()
 
 	window.setMouseCursorVisible(true); // Set in game curosor!
 
-	MainMenu main_menu {window, resloader.get_fonts(), resloader.get_music()};
+	MainMenu main_menu {window, resloader};
 
 	while (int state = main_menu.run())
 	{
 		if (state == 1)
 		{
-			MovesGame game{window, resloader.get_fonts(), resloader.get_textures(), resloader.get_soundbuffers(), resloader.get_music()};
+			TimeGame game{window, resloader};
 
 			if (!game.play())
 			{	

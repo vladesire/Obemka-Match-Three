@@ -34,5 +34,5 @@ void splash(sf::RenderWindow &window)
 	window.draw(powered);
 	window.display();
 
-	std::this_thread::sleep_for(std::chrono::seconds(5)); //TODO
+	//std::this_thread::sleep_for(std::chrono::seconds(5)); //TODO
 }

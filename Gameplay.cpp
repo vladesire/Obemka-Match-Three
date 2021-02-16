@@ -1,20 +1,11 @@
 #include "Gameplay.h"
 #include "ExitAsk.h"
 
-#include <fstream>
-
-void MovesGame::initialize(const sf::Texture *textures, const sf::SoundBuffer *soundbuffers, sf::Music *music)
+void TimeGame::initialize(ResLoader &resloader)
 {
-	std::ifstream fin;
-	fin.open("user.data");
-
-	if (!fin.is_open() || !(fin >> max_score))
-	{
-		fin.clear();
-		max_score = 0;
-	}
-
-	fin.close();
+	auto textures = resloader.get_textures(); 
+	auto soundbuffers = resloader.get_soundbuffers();
+	auto music = resloader.get_music(); 
 
 
 	tile_texture = textures;
@@ -29,7 +20,6 @@ void MovesGame::initialize(const sf::Texture *textures, const sf::SoundBuffer *s
 	spr_victory.setScale(.498f, .525f);
 	spr_victory.setPosition(wwpad + sidew + mainpad, whpad + headh + mainpad);
 	spr_victory.setTexture(textures[2]);
-
 
 
 	generate_tiles(tiles);
@@ -67,12 +57,14 @@ void MovesGame::initialize(const sf::Texture *textures, const sf::SoundBuffer *s
 
 	soundtrack = music;
 	soundtrack->setLoop(true);
-	soundtrack->setVolume(50);
+	soundtrack->setVolume(resloader.get_userdata()->get_music_volume());
 
-	victory = music + 2;
+	//victory = music + 2;
 
 	kizhak.setBuffer(soundbuffers[13]);
 	chetko.setBuffer(soundbuffers[14]);
+	kizhak.setVolume(resloader.get_userdata()->get_sounds_volume());
+	chetko.setVolume(resloader.get_userdata()->get_sounds_volume());
 
 	// TODO: fix when everyone will have 5 sounds!
 	for (size_t k = 0; k < 5; k++)
@@ -96,9 +88,18 @@ void MovesGame::initialize(const sf::Texture *textures, const sf::SoundBuffer *s
 		sounds[4][k].setBuffer(soundbuffers[8 + k]);
 	}
 
+	for (size_t i = 0; i < 5; i++)
+	{
+		for (size_t k = 0; k < 5; k++)
+		{
+			sounds[i][k].setVolume(resloader.get_userdata()->get_sounds_volume());
+		}
+	}
+
+	max_score = resloader.get_userdata()->get_high_score();
 }
 
-int MovesGame::play()
+int TimeGame::play()
 {
 	unsigned int frame_counter = 0; // FPS = 120
 	unsigned int seconds = 90+1;
@@ -130,7 +131,7 @@ int MovesGame::play()
 				if (exit_question(window, fonts))
 				{
 					soundtrack->stop();
-					victory->stop();
+					//victory->stop();
 					return 1;
 				}
 			}
@@ -169,7 +170,7 @@ int MovesGame::play()
 			else if (!exit_lock && (!seconds && !(swap_animation || disappear_animation || drop_animation)) && (event.type == sf::Event::MouseButtonReleased || event.type == sf::Event::KeyReleased))
 			{
 				soundtrack->stop();
-				victory->stop();
+			//	victory->stop();
 				return 1;
 
 				// TODO: Refactor condition
@@ -320,16 +321,13 @@ int MovesGame::play()
 				
 				if (max_score < iscore)
 				{
-					std::ofstream fout;
-					fout.open("user.data");
+					resloader.get_userdata()->set_high_score(iscore);
+					resloader.write_userdata();
 
 					/*soundtrack->stop();
 					victory->play();*/
 
 					chetko.play();
-
-					fout << iscore;
-					fout.close();
 				}
 				else
 				{

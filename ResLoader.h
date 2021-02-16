@@ -3,11 +3,79 @@
 
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
+#include <fstream>
 
 #include <iostream>
 
 class ResLoader
 {
+public:
+	class UserData
+	{
+	public:
+		int get_high_score()
+		{
+			return high_score;
+		}
+		int get_sounds_volume()
+		{
+			return sounds_volume;
+		}
+		int get_music_volume()
+		{
+			return music_volume;
+		}
+
+		void set_high_score(int score)
+		{
+			high_score = (score > 0) ? score : 0;
+		}
+		void set_sounds_volume(int volume)
+		{
+			if (volume < 0)
+				sounds_volume = 0;
+			else if (volume > 100)
+				sounds_volume = 100;
+			else
+				sounds_volume = volume / 10 * 10;
+		}
+		void set_music_volume(int volume)
+		{
+			if (volume < 0)
+				music_volume = 0;
+			else if (volume > 100)
+				music_volume = 100;
+			else
+				music_volume = volume / 10 * 10;
+		}
+
+		void add_sounds()
+		{
+			if (sounds_volume < 100)
+				sounds_volume += 10;
+		}
+		void sub_sounds()
+		{
+			if (sounds_volume > 0)
+				sounds_volume -= 10;
+		}
+		void add_music()
+		{
+			if (music_volume < 100)
+				music_volume += 10;
+		}
+		void sub_music()
+		{
+			if (music_volume > 0)
+				music_volume -= 10;
+		}
+
+	private:
+		int high_score;
+		int sounds_volume;
+		int music_volume;
+	};
+
 public:
 	void load()
 	{
@@ -53,7 +121,60 @@ public:
 			textures[1].loadFromFile("Textures/gameover.jpg");
 			textures[2].loadFromFile("Textures/chetko.jpg");
 
+			userdata = new UserData;
+
+			read_userdata();
+
 		}
+	}
+
+	void write_userdata()
+	{
+		std::ofstream fout;
+
+		fout.open("User/user.data", std::ios::trunc);
+
+		if (!fout.is_open())
+		{
+			return;
+		}
+
+		fout << userdata->get_high_score() << "\n";
+		fout << userdata->get_sounds_volume() << "\n";
+		fout << userdata->get_music_volume() << "\n";
+
+		fout.close();
+	}
+	void read_userdata()
+	{
+		std::ifstream fin;
+
+		fin.open("User/user.data");
+
+		if (!fin.is_open())
+		{
+			userdata->set_high_score(0);
+			userdata->set_sounds_volume(50);
+			userdata->set_music_volume(50);
+			return;
+		}
+
+		int data;
+
+		fin >> data;
+		userdata->set_high_score(data);
+
+		fin >> data;
+		userdata->set_sounds_volume(data);
+
+		fin >> data;
+		userdata->set_music_volume(data);
+
+		fin.close();
+	}
+	UserData *get_userdata()
+	{
+		return userdata;
 	}
 
 	const sf::Font *get_fonts()
@@ -75,13 +196,14 @@ public:
 	{
 		return textures;
 	}
-
+ 
 	~ResLoader()
 	{
 		delete[] fonts;
 		delete[] music;
 		delete[] soundbuffers;
 		delete[] textures;
+		delete userdata;
 	}
 
 private:
@@ -90,6 +212,9 @@ private:
 	sf::SoundBuffer *soundbuffers;
 	sf::Texture *textures;
 	bool loaded = false;
+
+	UserData *userdata;
+
 };
 
 
