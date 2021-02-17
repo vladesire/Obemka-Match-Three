@@ -6,6 +6,7 @@ void TimeGame::initialize(ResLoader &resloader)
 	auto textures = resloader.get_textures(); 
 	auto soundbuffers = resloader.get_soundbuffers();
 	auto music = resloader.get_music(); 
+	fonts = resloader.get_fonts();
 
 
 	tile_texture = textures;
@@ -27,44 +28,48 @@ void TimeGame::initialize(ResLoader &resloader)
 	generate_main(main_spr, tiles, *tile_texture);
 
 
-	header.setFont(fonts[1]);
-	score.setFont(fonts[0]);
-	moves.setFont(fonts[0]);
-	target.setFont(fonts[0]);
-	gameovertext.setFont(fonts[1]);
+	/*Respectively: Header, Score, Time left, High Score, Gameover*/
+	texts[0].setFont(fonts[1]);
+	texts[1].setFont(fonts[0]);
+	texts[2].setFont(fonts[0]);
+	texts[3].setFont(fonts[0]);
+	texts[4].setFont(fonts[1]);
 
-	header.setFillColor(sf::Color(169, 156, 173));
-	score.setFillColor(sf::Color(169, 156, 173));
-	moves.setFillColor(sf::Color(169, 156, 173));
-	target.setFillColor(sf::Color(169, 156, 173));
-	gameovertext.setFillColor(sf::Color::Red);
+	texts[0].setFillColor(sf::Color(169, 156, 173));
+	texts[1].setFillColor(sf::Color(169, 156, 173));
+	texts[2].setFillColor(sf::Color(169, 156, 173));
+	texts[3].setFillColor(sf::Color(169, 156, 173));
+	texts[4].setFillColor(sf::Color::Red);
 
-	header.setCharacterSize(40);
-	score.setCharacterSize(30);
-	moves.setCharacterSize(30);
-	target.setCharacterSize(30);
-	gameovertext.setCharacterSize(50);
+	texts[0].setCharacterSize(40);
+	texts[1].setCharacterSize(30);
+	texts[2].setCharacterSize(30);
+	texts[3].setCharacterSize(30);
+	texts[4].setCharacterSize(50);
 
-	header.setPosition(wwpad + 5, whpad + 20);
-	score.setPosition(wwpad + 5, whpad + headh);
-	moves.setPosition(wwpad + 5, whpad + headh + mainsz / 3);
-	target.setPosition(wwpad + 5, whpad + headh + mainsz * 2 / 3);
-	gameovertext.setPosition(wwpad + sidew + mainpad + 5, whpad + headh + mainpad + 5);
+	texts[0].setPosition(wwpad + 5, whpad + 20);
+	texts[1].setPosition(wwpad + 5, whpad + headh);
+	texts[2].setPosition(wwpad + 5, whpad + headh + mainsz / 3);
+	texts[3].setPosition(wwpad + 5, whpad + headh + mainsz * 2 / 3);
+	texts[4].setPosition(wwpad + sidew + mainpad + 5, whpad + headh + mainpad + 5);
 
-	header.setString("Игра на время");
-	target.setString("Рекорд\n" + std::to_string(max_score));
-	gameovertext.setString("Press any key");
+	max_score = resloader.get_userdata()->get_high_score();
 
-	soundtrack = music;
+	texts[0].setString("Игра на время");
+	texts[3].setString("Рекорд\n" + std::to_string(max_score));
+	texts[4].setString("Press any key");
+
+	srand(time(NULL));
+
+	soundtrack = music + 1 + rand() % 2;
 	soundtrack->setLoop(true);
 	soundtrack->setVolume(resloader.get_userdata()->get_music_volume());
+	
+	victory = music + 3 + rand() % 3;
+	defeat = music + 6 + rand() % 3;
 
-	//victory = music + 2;
-
-	kizhak.setBuffer(soundbuffers[13]);
-	chetko.setBuffer(soundbuffers[14]);
-	kizhak.setVolume(resloader.get_userdata()->get_sounds_volume());
-	chetko.setVolume(resloader.get_userdata()->get_sounds_volume());
+	victory->setVolume(resloader.get_userdata()->get_sounds_volume()); // It is loaded as music, but treated as sound
+	defeat->setVolume(resloader.get_userdata()->get_sounds_volume());
 
 	// TODO: fix when everyone will have 5 sounds!
 	for (size_t k = 0; k < 5; k++)
@@ -96,19 +101,31 @@ void TimeGame::initialize(ResLoader &resloader)
 		}
 	}
 
-	max_score = resloader.get_userdata()->get_high_score();
 }
 
 int TimeGame::play()
 {
 	unsigned int frame_counter = 0; // FPS = 120
-	unsigned int seconds = 90+1;
-	
+	unsigned int seconds = 5 + 1;
+
+	bool gameover_once = true;
+	bool update_score = true;
+
+	bool selected = false; // A tile is seleceted for movement
+	sf::Vector2i selpos; // selected tile's position in main_spr array
+	sf::Vector2i newpos; // tile that's paired with selpos to swap
+
 	bool exit_lock = true;
-	int frames_left = 120*5+60; // wait for ending sound 
+	int frames_left = 120 * 5 + 60; // wait for ending sound 
+
+	int swap_animation = 0; // to allow double-time animation
+	int disappear_animation = 0;
+	int drop_animation = 0;
 
 	std::chrono::system_clock::time_point start_time;
 	std::chrono::system_clock::duration delta_time;
+
+	Animation anim, anim_2; // to handle two different collective animations; anim_2 for disappear, second swap
 
 	soundtrack->play();
 
@@ -131,7 +148,8 @@ int TimeGame::play()
 				if (exit_question(window, fonts))
 				{
 					soundtrack->stop();
-					//victory->stop();
+					victory->stop();
+					defeat->stop();
 					return 1;
 				}
 			}
@@ -152,7 +170,6 @@ int TimeGame::play()
 						swap_animation = 2;
 						selected = false;
 						init_swap(anim, anim_2, main_spr, newpos, selpos);
-						--imoves;
 					}
 					else
 					{
@@ -170,7 +187,8 @@ int TimeGame::play()
 			else if (!exit_lock && (!seconds && !(swap_animation || disappear_animation || drop_animation)) && (event.type == sf::Event::MouseButtonReleased || event.type == sf::Event::KeyReleased))
 			{
 				soundtrack->stop();
-			//	victory->stop();
+				victory->stop();
+				defeat->stop();
 				return 1;
 
 				// TODO: Refactor condition
@@ -191,7 +209,6 @@ int TimeGame::play()
 				swap_animation = 2;
 				selected = false;
 				init_swap(anim, anim_2, main_spr, newpos, selpos);
-				--imoves;
 			}
 
 		}
@@ -206,22 +223,14 @@ int TimeGame::play()
 
 				generate_main(main_spr, tiles, *tile_texture);
 
-				state_changed = true;
+				update_score = true;
 
 				if (analyze_tiles(tiles))
 				{
 					swap_animation = 0;
 					disappear_animation = 1;
 
-					init_disappear(anim_2, main_spr, tiles, iscore);
-
-
-					// TODO: REGENERATE -1 FIRST. IT WON'T WORK OTHERWISE.
-
-					// Play disappear animation: scale(0.9, 0.9) + setOrignin(30, 30)
-					// then regenerate
-					// only then play fall animation pop up from the middle
-					// then try analyze again. Repeat till no more 3-in-line
+					init_disappear(anim_2, main_spr, tiles, score);
 				}
 				else
 				{
@@ -241,7 +250,7 @@ int TimeGame::play()
 			{
 				disappear_animation = 0;
 				drop_animation = 1;
-				state_changed = true;
+				update_score = true;
 
 				copy_tiles(tiles_temp, tiles);
 
@@ -277,32 +286,34 @@ int TimeGame::play()
 				{
 					disappear_animation = 1;
 
-					init_disappear(anim_2, main_spr, tiles, iscore);
+					init_disappear(anim_2, main_spr, tiles, score);
 
 				}
 
 			}
 		}
 
-		if (state_changed)
+		if (update_score)
 		{
-			score.setString("Счет\n" + std::to_string(iscore));
-			state_changed = false;
+			texts[1].setString("Счет\n" + std::to_string(score));
+			update_score = false;
 		}
 
 		if (frame_counter % 120 == 0 && seconds)
 		{
-			moves.setString("Осталось\n" + std::to_string(--seconds));
+			texts[2].setString("Осталось\n" + std::to_string(--seconds));
 		}
 
 
 		window.clear(sf::Color(96, 73, 82));
 
 		window.draw(lines);
-		window.draw(header);
-		window.draw(score);
-		window.draw(moves);
-		window.draw(target);
+
+		for (size_t i = 0; i < 4; i++)
+		{
+			window.draw(texts[i]);
+		}
+
 
 		for (size_t i = 0; i < 8; i++)
 		{
@@ -317,24 +328,21 @@ int TimeGame::play()
 			if (gameover_once)
 			{
 				gameover_once = false;
-				soundtrack->setVolume(10);
-				
-				if (max_score < iscore)
+				soundtrack->setVolume(5);
+
+				if (max_score < score)
 				{
-					resloader.get_userdata()->set_high_score(iscore);
+					resloader.get_userdata()->set_high_score(score);
 					resloader.write_userdata();
 
-					/*soundtrack->stop();
-					victory->play();*/
-
-					chetko.play();
+					victory->play();
 				}
 				else
 				{
-					kizhak.play();
+					defeat->play();
 				}
 			}
-			if (max_score < iscore)
+			if (max_score < score)
 			{
 				window.draw(spr_victory);
 			}
@@ -346,7 +354,7 @@ int TimeGame::play()
 			if (!frames_left)
 			{
 				exit_lock = false;
-				window.draw(gameovertext);
+				window.draw(texts[4]);
 			}
 			else
 			{
@@ -368,4 +376,357 @@ int TimeGame::play()
 	}
 
 	return 1;
+}
+
+void TimeGame::init_lines(sf::VertexArray &lines)
+{
+
+	lines[0].position = sf::Vector2f(wwpad, whpad);
+	lines[1].position = sf::Vector2f(width - wwpad, whpad);
+
+	lines[2].position = sf::Vector2f(wwpad, whpad + headh);
+	lines[3].position = sf::Vector2f(width - wwpad, whpad + headh);
+
+	lines[4].position = sf::Vector2f(wwpad, height - whpad);
+	lines[5].position = sf::Vector2f(width - wwpad, height - whpad);
+
+	lines[6].position = sf::Vector2f(wwpad, whpad);
+	lines[7].position = sf::Vector2f(wwpad, height - whpad);
+
+	lines[8].position = sf::Vector2f(width - wwpad, whpad);
+	lines[9].position = sf::Vector2f(width - wwpad, height - whpad);
+
+	lines[10].position = sf::Vector2f(wwpad + sidew, whpad + headh);
+	lines[11].position = sf::Vector2f(wwpad + sidew, height - whpad);
+
+	for (size_t i = 0; i < 12; ++i)
+	{
+		lines[i].color = sf::Color(194, 137, 137);
+	}
+
+}
+
+void TimeGame::generate_main(sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][8], const sf::Texture &text)
+{
+	int orh = whpad + headh + mainpad; // origin height
+	int orw = wwpad + sidew + mainpad; // origin width
+
+	for (size_t i = 0; i < 8; ++i)
+	{
+		int origh = orh + i * (tilesz + itempad);
+
+		for (size_t k = 0; k < 8; ++k)
+		{
+			int origw = orw + k * (tilesz + itempad);
+
+			main_spr[i][k].setPosition(origw, origh);
+			main_spr[i][k].setTexture(text);
+			main_spr[i][k].setTextureRect(sf::IntRect(tiles[i][k] * 60, 0, 60, 60));
+		}
+	}
+}
+
+bool TimeGame::analyze_tiles(char(&tiles)[8][8])
+{
+	bool changed = false;
+	// horizontal analysis
+
+	//        |        |        midpoints
+	// [0][1][2][3][4][5][6][7]
+	// [0][1][2][3][4][5][6][7]
+
+	for (size_t i = 0; i < 8; i++)
+	{
+		char col = tiles[i][2];
+		int left = 0, right = 0;
+
+		for (int k = 1; k >= 0; --k)
+		{
+			if (tiles[i][k] == col)
+				++left;
+			else
+				break;
+		}
+
+		for (int k = 3; k <= 6; ++k)
+		{
+			if (tiles[i][k] == col)
+				++right;
+			else
+				break;
+		}
+
+		if (left + right + 1 >= 3)
+		{
+			changed = true;
+
+			for (int k = 2 - left; k <= 2 + right; k++)
+			{
+				tiles[i][k] = -1;
+			}
+		}
+
+		col = tiles[i][5];
+
+		if (col != -1)
+		{
+			left = right = 0;
+
+			for (int k = 4; k >= 1; --k)
+			{
+				if (tiles[i][k] == col)
+					++left;
+				else
+					break;
+			}
+
+			for (int k = 6; k <= 7; ++k)
+			{
+				if (tiles[i][k] == col)
+					++right;
+				else
+					break;
+			}
+
+			if (left + right + 1 >= 3)
+			{
+				changed = true;
+
+				for (int k = 5 - left; k <= 5 + right; k++)
+				{
+					tiles[i][k] = -1;
+				}
+			}
+		}
+
+	}
+
+	for (size_t i = 0; i < 8; i++)
+	{
+		char col = tiles[2][i];
+		int left = 0, right = 0;
+
+		for (int k = 1; k >= 0; --k)
+		{
+			if (tiles[k][i] == col)
+				++left;
+			else
+				break;
+		}
+
+		for (int k = 3; k <= 6; ++k)
+		{
+			if (tiles[k][i] == col)
+				++right;
+			else
+				break;
+		}
+
+		if (left + right + 1 >= 3)
+		{
+			changed = true;
+
+			for (int k = 2 - left; k <= 2 + right; k++)
+			{
+				tiles[k][i] = -1;
+			}
+		}
+
+		col = tiles[5][i];
+
+		if (col != -1)
+		{
+			left = right = 0;
+
+			for (int k = 4; k >= 1; --k)
+			{
+				if (tiles[k][i] == col)
+					++left;
+				else
+					break;
+			}
+
+			for (int k = 6; k <= 7; ++k)
+			{
+				if (tiles[k][i] == col)
+					++right;
+				else
+					break;
+			}
+
+			if (left + right + 1 >= 3)
+			{
+				changed = true;
+
+				for (int k = 5 - left; k <= 5 + right; k++)
+				{
+					tiles[k][i] = -1;
+				}
+			}
+		}
+
+	}
+	return changed;
+}
+
+void TimeGame::regenerate_tiles(char(&tiles)[8][8])
+{
+	for (size_t i = 0; i < 8; i++)
+	{
+		for (size_t k = 0; k < 8; k++)
+		{
+			if (tiles[i][k] == -2)
+				tiles[i][k] = rand() % 5;
+		}
+	}
+}
+
+void TimeGame::generate_tiles(char(&tiles)[8][8])
+{
+	srand(time(NULL));
+
+	for (size_t i = 0; i < 8; i++)
+	{
+		for (size_t k = 0; k < 8; k++)
+		{
+			tiles[i][k] = rand() % 5;
+		}
+	}
+
+	while (analyze_tiles(tiles))
+	{
+		for (size_t i = 0; i < 8; i++)
+		{
+			for (size_t k = 0; k < 8; k++)
+			{
+				if (tiles[i][k] == -1)
+					tiles[i][k] = rand() % 5;
+			}
+		}
+	}
+
+}
+
+void TimeGame::tilearrpos(sf::Vector2i &selpos, const sf::Vector2i &coords)
+{
+	int orh = whpad + headh + mainpad; // origin height
+	int orw = wwpad + sidew + mainpad; // origin width
+
+	if (coords.x < orw ||
+		coords.x >(width - wwpad) ||
+		coords.y < orh ||
+		coords.y >(height - whpad) ||
+		((coords.x - orw) / 64.0 - (int)((coords.x - orw) / 64.0) > 0.9375) ||
+		((coords.y - orh) / 64.0 - (int)((coords.y - orh) / 64.0) > 0.9375)
+		)
+	{
+		selpos.x = -1;
+		selpos.y = -1;
+	}
+	else
+	{
+		selpos.x = (coords.x - orw) / 64.0;
+		selpos.y = (coords.y - orh) / 64.0;
+	}
+
+}
+
+void TimeGame::init_swap(Animation &a1, Animation &a2, sf::Sprite(&main_spr)[8][8], sf::Vector2i newpos, sf::Vector2i selpos)
+{
+	a1.clear();
+	a2.clear();
+
+	auto diff = newpos - selpos;
+	AnimationDir dir;
+
+	if (diff.x == -1)
+	{
+		dir = AnimationDir::Left;
+	}
+	else if (diff.x == 1)
+	{
+		dir = AnimationDir::Right;
+	}
+	else if (diff.y == -1)
+	{
+		dir = AnimationDir::Top;
+	}
+	else
+	{
+		dir = AnimationDir::Down;
+	}
+
+	a1.set_animation(AnimationType::Move, dir, 30, 2);
+	a1.add(&main_spr[selpos.y][selpos.x]);
+	a2.set_animation(AnimationType::Move, opposite_dir(dir), 30, 2);
+	a2.add(&main_spr[newpos.y][newpos.x]);
+
+}
+
+void TimeGame::init_disappear(Animation &a, sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][8], int &score)
+{
+	a.clear();
+
+	for (size_t i = 0; i < 8; i++)
+	{
+		for (size_t k = 0; k < 8; k++)
+		{
+			if (tiles[i][k] == -1)
+			{
+				score += 100;
+				main_spr[i][k].setOrigin(30, 30);
+				main_spr[i][k].move(30, 30); // to compensate origin move
+				a.add(&main_spr[i][k]);
+			}
+		}
+	}
+
+	a.set_animation(AnimationType::Disappear, AnimationDir::Down, 60, 0.85);
+
+}
+
+void TimeGame::init_drop(Animation &a, sf::Sprite(&main_spr)[8][8], char(&tiles_temp)[8][8])
+{
+	a.clear();
+
+	int in_col; // number of -1 in column
+
+	for (int i = 0; i < 8; ++i) // row
+	{
+		in_col = 0;
+		for (int k = 0, top = 0; k < 8; ++k) // column
+		{
+			if (tiles_temp[k][i] == -1)
+			{
+				++in_col;
+
+				for (int r = k; r >= in_col; --r)
+				{
+					tiles_temp[r][i] = tiles_temp[r - 1][i];
+					//a.add(&main_spr[r-1][i]);
+				}
+				tiles_temp[in_col - 1][i] = -2;
+			}
+		}
+	}
+
+	//a.set_animation(AnimationType::Move, AnimationDir::Down, 30, 2);
+
+}
+
+void TimeGame::reverse_swap(Animation &a1, Animation &a2)
+{
+	a1.set_animation(AnimationType::Move, a1.get_dir(), 30, 2); // No need for reversion of dir; object are swapped in main_spr
+	a2.set_animation(AnimationType::Move, a2.get_dir(), 30, 2);
+}
+
+void TimeGame::copy_tiles(char(&to)[8][8], const char(&from)[8][8])
+{
+	for (size_t i = 0; i < 8; i++)
+	{
+		for (size_t k = 0; k < 8; k++)
+		{
+			to[i][k] = from[i][k];
+		}
+	}
 }

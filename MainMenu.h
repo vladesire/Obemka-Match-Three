@@ -14,7 +14,7 @@ class MainMenu
 {
 public:
 	MainMenu(sf::RenderWindow &window_, ResLoader &resloader_): 
-		window{window_}, resloader{resloader_}, fonts{resloader_.get_fonts()}, soundtrack{resloader_.get_music() + 1}, userdata{resloader_.get_userdata()}
+		window{window_}, resloader{resloader_}, fonts{resloader_.get_fonts()}, soundtrack{resloader_.get_music()}, userdata{resloader_.get_userdata()}
 	{}
 
 	int run()
@@ -126,6 +126,9 @@ public:
 
 	void settings()
 	{
+		sf::Sound sound; // To feel difference when changing settings
+		sound.setBuffer(resloader.get_soundbuffers()[3]);
+
 		sf::Text texts[8];
 
 		for (size_t i = 0; i < 8; ++i)
@@ -220,13 +223,19 @@ public:
 					}
 					else
 					{
-						if (id == 1)
+						if (id == 1 || id == 2)
 						{
-							userdata->sub_sounds();
-						}
-						else if (id == 2)
-						{
-							userdata->add_sounds();
+							if (id == 1)
+							{
+								userdata->sub_sounds();
+							}
+							else 
+							{
+								userdata->add_sounds();
+							}
+
+							sound.setVolume(userdata->get_sounds_volume());
+							sound.play();
 						}
 						else if (id == 3)
 						{
@@ -235,7 +244,7 @@ public:
 						else if (id == 4)
 						{
 							userdata->add_music();
-						}
+						}				
 					}
 
 					if (id != -1)
@@ -244,6 +253,7 @@ public:
 						rect1.setSize(sf::Vector2f(2 * userdata->get_sounds_volume(), 20));
 						rect2.setSize(sf::Vector2f(2 * userdata->get_music_volume(), 20));
 					}
+
 				}
 			}
 		}
