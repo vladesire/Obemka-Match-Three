@@ -29,6 +29,13 @@ const int height = 640, width = 740;
 		2. In every render cycle: first draw, then update! 
 */
 
+/*
+	Bugs:
+		
+		1. When you're trying to to swipe a tile out of game field.
+
+*/
+
 
 int main()
 {
@@ -45,6 +52,7 @@ int main()
 	
 	t.join();
 	
+
 
 	/*sf::Image img_cursor; // TODO cursor
 	img_cursor.loadFromFile("cursor.png");

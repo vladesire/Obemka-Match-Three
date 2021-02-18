@@ -33,6 +33,9 @@ void splash(sf::RenderWindow &window)
 	window.draw(text);
 	window.draw(powered);
 	window.display();
-
+	
+#if NDEBUG
 	std::this_thread::sleep_for(std::chrono::seconds(5)); //TODO
+#endif // NDEBUG
+
 }

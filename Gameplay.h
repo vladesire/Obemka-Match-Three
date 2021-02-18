@@ -87,6 +87,9 @@ private:
 	void tilearrpos(sf::Vector2i &selpos, const sf::Vector2i &coords);
 
 	void init_swap(Animation &a1, Animation &a2, sf::Sprite(&main_spr)[8][8], sf::Vector2i newpos, sf::Vector2i selpos);
+	void init_swap(CorrAnimation &anim, sf::Sprite(&main_spr)[8][8], sf::Vector2i newpos, sf::Vector2i selpos);
+
+
 	void init_disappear(Animation &a, sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][8], int &score);
 
 	void init_drop(Animation &a, sf::Sprite(&main_spr)[8][8], char(&tiles_temp)[8][8]);

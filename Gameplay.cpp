@@ -106,7 +106,7 @@ void TimeGame::initialize(ResLoader &resloader)
 int TimeGame::play()
 {
 	unsigned int frame_counter = 0; // FPS = 120
-	unsigned int seconds = 5 + 1;
+	unsigned int seconds = 90 + 1;
 
 	bool gameover_once = true;
 	bool update_score = true;
@@ -127,193 +127,33 @@ int TimeGame::play()
 
 	Animation anim, anim_2; // to handle two different collective animations; anim_2 for disappear, second swap
 
+	CorrAnimation canim;
+
 	soundtrack->play();
+
+	unsigned long long DBG_time_sum = 0;
 
 	while (true)
 	{
 		start_time = std::chrono::system_clock::now();
 
-		sf::Event event;
-		while (window.pollEvent(event))
-		{
-
-			// TODO: change order, check animation first
-			if (event.type == sf::Event::Closed)
-			{
-				if (exit_question(window, fonts))
-					return 0;
-			}
-			else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
-			{
-				if (exit_question(window, fonts))
-				{
-					soundtrack->stop();
-					victory->stop();
-					defeat->stop();
-					return 1;
-				}
-			}
-			else if (!(swap_animation || disappear_animation || drop_animation) && seconds && event.type == sf::Event::MouseButtonPressed)
-			{
-				if (selected)
-				{
-					tilearrpos(newpos, sf::Mouse::getPosition(window));
-					auto diff = newpos - selpos;
-
-					if (newpos.x == -1)
-					{
-						selected = false;
-					}
-					else if (diff.x == 0 && abs(diff.y) == 1 || diff.y == 0 && abs(diff.x) == 1)
-					{
-						sounds[tiles[selpos.y][selpos.x]][rand() % 5].play();
-						swap_animation = 2;
-						selected = false;
-						init_swap(anim, anim_2, main_spr, newpos, selpos);
-					}
-					else
-					{
-						selpos = newpos;
-					}
-
-				}
-				else
-				{
-					tilearrpos(selpos, sf::Mouse::getPosition(window));
-					selected = (selpos.x != -1);
-				}
-
-			}
-			else if (!exit_lock && (!seconds && !(swap_animation || disappear_animation || drop_animation)) && (event.type == sf::Event::MouseButtonReleased || event.type == sf::Event::KeyReleased))
-			{
-				soundtrack->stop();
-				victory->stop();
-				defeat->stop();
-				return 1;
-
-				// TODO: Refactor condition
-			}
-
-		}
-
-		if (selected && sf::Mouse::isButtonPressed(sf::Mouse::Left))
-		{
-
-			tilearrpos(newpos, sf::Mouse::getPosition(window));
-
-			auto diff = newpos - selpos;
-
-			if (diff.x == 0 && abs(diff.y) == 1 || diff.y == 0 && abs(diff.x) == 1)
-			{
-				sounds[tiles[selpos.y][selpos.x]][rand() % 5].play();
-				swap_animation = 2;
-				selected = false;
-				init_swap(anim, anim_2, main_spr, newpos, selpos);
-			}
-
-		}
-
-		if (swap_animation)
-		{
-			if (!(anim.apply() && anim_2.apply()))
-			{
-				auto temp = tiles[selpos.y][selpos.x];
-				tiles[selpos.y][selpos.x] = tiles[newpos.y][newpos.x];
-				tiles[newpos.y][newpos.x] = temp;
-
-				generate_main(main_spr, tiles, *tile_texture);
-
-				update_score = true;
-
-				if (analyze_tiles(tiles))
-				{
-					swap_animation = 0;
-					disappear_animation = 1;
-
-					init_disappear(anim_2, main_spr, tiles, score);
-				}
-				else
-				{
-					if (swap_animation == 2)
-					{
-
-						reverse_swap(anim, anim_2);
-					}
-					--swap_animation;
-				}
-
-			}
-		}
-		else if (disappear_animation)
-		{
-			if (!(anim_2.apply())) // anim_2 because I will need it to restore tiles after drop
-			{
-				disappear_animation = 0;
-				drop_animation = 1;
-				update_score = true;
-
-				copy_tiles(tiles_temp, tiles);
-
-				init_drop(anim, main_spr, tiles_temp);
-
-			}
-		}
-		else if (drop_animation)
-		{
-			if (true/*!(anim.apply())*/) // For now, without animation
-			{
-				drop_animation = 0;
-
-				for (size_t i = 0; i < 8; i++) // Restore disappeared tiles
-				{
-					for (size_t k = 0; k < 8; k++)
-					{
-						if (tiles[i][k] == -1) //using old values
-						{
-							main_spr[i][k].setScale(1, 1);
-							main_spr[i][k].setOrigin(0, 0);
-						}
-					}
-				}
-
-				copy_tiles(tiles, tiles_temp);
-
-				regenerate_tiles(tiles);
-
-				generate_main(main_spr, tiles, *tile_texture);
-
-				if (analyze_tiles(tiles))
-				{
-					disappear_animation = 1;
-
-					init_disappear(anim_2, main_spr, tiles, score);
-
-				}
-
-			}
-		}
+		window.clear(sf::Color(96, 73, 82));
+		window.draw(lines);
 
 		if (update_score)
 		{
 			texts[1].setString("—чет\n" + std::to_string(score));
 			update_score = false;
 		}
-
-		if (frame_counter % 120 == 0 && seconds)
+		if (seconds && frame_counter % 120 == 0)
 		{
 			texts[2].setString("ќсталось\n" + std::to_string(--seconds));
 		}
-
-
-		window.clear(sf::Color(96, 73, 82));
-
-		window.draw(lines);
 
 		for (size_t i = 0; i < 4; i++)
 		{
 			window.draw(texts[i]);
 		}
-
 
 		for (size_t i = 0; i < 8; i++)
 		{
@@ -366,13 +206,176 @@ int TimeGame::play()
 		window.display();
 
 
+		sf::Event event;
+		while (window.pollEvent(event))
+		{
+			if (!(swap_animation || disappear_animation || drop_animation) && seconds && event.type == sf::Event::MouseButtonPressed)
+			{
+				if (selected)
+				{
+					tilearrpos(newpos, sf::Mouse::getPosition(window));
+					auto diff = newpos - selpos;
+
+					if (newpos.x == -1)
+					{
+						selected = false;
+					}
+					else if (diff.x == 0 && abs(diff.y) == 1 || diff.y == 0 && abs(diff.x) == 1)
+					{
+						sounds[tiles[selpos.y][selpos.x]][rand() % 5].play();
+						swap_animation = 2;
+						selected = false;
+						init_swap(canim, main_spr, newpos, selpos);
+					}
+					else
+					{
+						selpos = newpos;
+					}
+
+				}
+				else
+				{
+					tilearrpos(selpos, sf::Mouse::getPosition(window));
+					selected = (selpos.x != -1);
+				}
+
+			}
+			else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
+			{
+				std::cout << "Average time for a frame in microseconds: " << DBG_time_sum / (double)frame_counter << "\n";
+
+				if (exit_question(window, fonts))
+				{
+					soundtrack->stop();
+					victory->stop();
+					defeat->stop();
+					return 1;
+				}
+			}
+			else if (event.type == sf::Event::Closed)
+			{
+				if (exit_question(window, fonts))
+					return 0;
+			}
+			else if (!exit_lock && (!seconds && !(swap_animation || disappear_animation || drop_animation)) && (event.type == sf::Event::MouseButtonReleased || event.type == sf::Event::KeyReleased))
+			{
+				soundtrack->stop();
+				victory->stop();
+				defeat->stop();
+				return 1;
+
+				// TODO: Refactor condition
+			}
+		}
+
+		if (selected && sf::Mouse::isButtonPressed(sf::Mouse::Left))
+		{
+
+			tilearrpos(newpos, sf::Mouse::getPosition(window));
+
+			auto diff = newpos - selpos;
+
+			if (diff.x == 0 && abs(diff.y) == 1 || diff.y == 0 && abs(diff.x) == 1)
+			{
+				sounds[tiles[selpos.y][selpos.x]][rand() % 5].play();
+				swap_animation = 2;
+				selected = false;
+				init_swap(canim, main_spr, newpos, selpos);
+
+			}
+
+		}
+
+		if (swap_animation)
+		{
+			if (!canim.apply())
+			{
+				auto temp = tiles[selpos.y][selpos.x];
+				tiles[selpos.y][selpos.x] = tiles[newpos.y][newpos.x];
+				tiles[newpos.y][newpos.x] = temp;
+
+				generate_main(main_spr, tiles, *tile_texture);
+
+				update_score = true;
+
+				if (analyze_tiles(tiles))
+				{
+					swap_animation = 0;
+					disappear_animation = 1;
+
+					init_disappear(anim_2, main_spr, tiles, score);
+				}
+				else
+				{
+					if (swap_animation == 2)
+					{
+						canim.repeat();
+					}
+					--swap_animation;
+				}
+
+			}
+		
+		}
+		else if (disappear_animation)
+		{
+			if (!(anim_2.apply())) // anim_2 because I will need it to restore tiles after drop
+			{
+				disappear_animation = 0;
+				drop_animation = 1;
+				update_score = true;
+
+				copy_tiles(tiles_temp, tiles);
+
+				init_drop(anim, main_spr, tiles_temp);
+
+			}
+		}
+		else if (drop_animation)
+		{
+			if (true/*!(anim.apply())*/) // For now, without animation
+			{
+				drop_animation = 0;
+
+				for (size_t i = 0; i < 8; i++) // Restore disappeared tiles
+				{
+					for (size_t k = 0; k < 8; k++)
+					{
+						if (tiles[i][k] == -1) //using old values
+						{
+							main_spr[i][k].setScale(1, 1);
+							main_spr[i][k].setOrigin(0, 0);
+						}
+					}
+				}
+
+				copy_tiles(tiles, tiles_temp);
+
+				regenerate_tiles(tiles);
+
+				generate_main(main_spr, tiles, *tile_texture);
+
+				if (analyze_tiles(tiles))
+				{
+					disappear_animation = 1;
+
+					init_disappear(anim_2, main_spr, tiles, score);
+
+				}
+
+			}
+		}
+
+
 		delta_time = std::chrono::system_clock::now() - start_time;
 
 		std::this_thread::sleep_for(std::chrono::microseconds(8333 - std::chrono::duration_cast<std::chrono::microseconds>(delta_time).count()));
 
 		++frame_counter;
 
-		//std::cout << std::chrono::duration_cast<std::chrono::microseconds>(delta_time).count() << "\n";
+		std::cout << std::chrono::duration_cast<std::chrono::microseconds>(delta_time).count() << "\n";
+		DBG_time_sum += std::chrono::duration_cast<std::chrono::microseconds>(delta_time).count();
+	
 	}
 
 	return 1;
@@ -629,6 +632,34 @@ void TimeGame::tilearrpos(sf::Vector2i &selpos, const sf::Vector2i &coords)
 		selpos.y = (coords.y - orh) / 64.0;
 	}
 
+}
+
+void TimeGame::init_swap(CorrAnimation &anim, sf::Sprite(&main_spr)[8][8], sf::Vector2i newpos, sf::Vector2i selpos)
+{
+	anim.clear();
+
+	auto diff = newpos - selpos;
+	AnimationDir dir;
+
+	if (diff.x == -1)
+	{
+		dir = AnimationDir::Left;
+	}
+	else if (diff.x == 1)
+	{
+		dir = AnimationDir::Right;
+	}
+	else if (diff.y == -1)
+	{
+		dir = AnimationDir::Top;
+	}
+	else
+	{
+		dir = AnimationDir::Down;
+	}
+
+	anim.add(&main_spr[selpos.y][selpos.x], AnimationType::Move, dir, 30, 2);
+	anim.add(&main_spr[newpos.y][newpos.x], AnimationType::Move, opposite_dir(dir), 30, 2);
 }
 
 void TimeGame::init_swap(Animation &a1, Animation &a2, sf::Sprite(&main_spr)[8][8], sf::Vector2i newpos, sf::Vector2i selpos)
