@@ -35,7 +35,7 @@ void Animation::set_animation(AnimationType antype, AnimationDir andir, int anfr
 		off *= delta;
 
 	}
-	else if (type == AnimationType::Disappear)
+	else if (type == AnimationType::Scale)
 	{
 		opacity = 255.0 / anframes;
 	}
@@ -66,7 +66,7 @@ bool Animation::apply()
 			i->move(off);
 		}
 	}
-	else if (type == AnimationType::Disappear)
+	else if (type == AnimationType::Scale)
 	{
 		for (auto i : objects)
 		{

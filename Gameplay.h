@@ -11,10 +11,10 @@
 #include "ResLoader.h"
 #include "Animation.h"
 
-/*
+
 //FOR DEBUG ONLY!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #include <iostream>
-void ___print_tiles(char(&tiles)[8][8])
+inline void ___print_tiles(char(&tiles)[8][8])
 {
 	std::cout << "\nTiles dump\n";
 	for (size_t i = 0; i < 8; i++)
@@ -28,7 +28,7 @@ void ___print_tiles(char(&tiles)[8][8])
 	}
 }
 //FOR DEBUG ONLY!!!!!!!!!!!!!!!!!!!!!!!!!!!
-*/
+
 
 class TimeGame
 {
@@ -86,15 +86,10 @@ private:
 
 	void tilearrpos(sf::Vector2i &selpos, const sf::Vector2i &coords);
 
-	void init_swap(Animation &a1, Animation &a2, sf::Sprite(&main_spr)[8][8], sf::Vector2i newpos, sf::Vector2i selpos);
 	void init_swap(CorrAnimation &anim, sf::Sprite(&main_spr)[8][8], sf::Vector2i newpos, sf::Vector2i selpos);
+	void init_disappear(CorrAnimation &canim, sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][8], int &score);
+	void init_drop(CorrAnimation &canim, sf::Sprite(&main_spr)[8][8], char(&tiles_temp)[8][8]);
 
-
-	void init_disappear(Animation &a, sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][8], int &score);
-
-	void init_drop(Animation &a, sf::Sprite(&main_spr)[8][8], char(&tiles_temp)[8][8]);
-
-	void reverse_swap(Animation &a1, Animation &a2);
 	void copy_tiles(char(&to)[8][8], const char(&from)[8][8]);
 
 };

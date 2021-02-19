@@ -133,12 +133,23 @@ int TimeGame::play()
 
 	unsigned long long DBG_time_sum = 0;
 
+
+	sf::RectangleShape screen;
+
+	// TODO: make them part of the class?
+	int orh = whpad + headh + mainpad; // origin height (of game zone)
+	int orw = wwpad + sidew + mainpad; // origin width
+
+	screen.setFillColor(sf::Color(96, 73, 82));
+	screen.setPosition(orw, 0);
+	screen.setSize(sf::Vector2f(width - wwpad, orh));
+
+
 	while (true)
 	{
 		start_time = std::chrono::system_clock::now();
 
 		window.clear(sf::Color(96, 73, 82));
-		window.draw(lines);
 
 		if (update_score)
 		{
@@ -150,19 +161,25 @@ int TimeGame::play()
 			texts[2].setString("Осталось\n" + std::to_string(--seconds));
 		}
 
-		for (size_t i = 0; i < 4; i++)
-		{
-			window.draw(texts[i]);
-		}
-
+		// Layer 3
 		for (size_t i = 0; i < 8; i++)
 		{
 			for (size_t k = 0; k < 8; k++)
 			{
-				window.draw(main_spr[i][k]);
+				if (!(swap_animation && selpos.x == k && selpos.y == i))
+					window.draw(main_spr[i][k]);
 			}
 		}
 
+		if (swap_animation)
+		{
+			window.draw(main_spr[selpos.y][selpos.x]);
+		}
+
+		// Layer: invisible screen
+		window.draw(screen);
+
+		// Layer 2
 		if (!seconds && !(swap_animation || disappear_animation || drop_animation))
 		{
 			if (gameover_once)
@@ -202,7 +219,16 @@ int TimeGame::play()
 			}
 
 		}
-
+		
+		
+		// Layer 1
+		for (size_t i = 0; i < 4; i++)
+		{
+			window.draw(texts[i]);
+		}
+		window.draw(lines);
+		
+		// Layer 0
 		window.display();
 
 
@@ -214,13 +240,16 @@ int TimeGame::play()
 				if (selected)
 				{
 					tilearrpos(newpos, sf::Mouse::getPosition(window));
-					auto diff = newpos - selpos;
-
-					if (newpos.x == -1)
+					
+					if (newpos.x < 0) // -1: space between tiles, -2: space outside game zone
 					{
 						selected = false;
+						continue;
 					}
-					else if (diff.x == 0 && abs(diff.y) == 1 || diff.y == 0 && abs(diff.x) == 1)
+
+					auto diff = newpos - selpos;
+
+					if (diff.x == 0 && abs(diff.y) == 1 || diff.y == 0 && abs(diff.x) == 1)
 					{
 						sounds[tiles[selpos.y][selpos.x]][rand() % 5].play();
 						swap_animation = 2;
@@ -270,8 +299,12 @@ int TimeGame::play()
 
 		if (selected && sf::Mouse::isButtonPressed(sf::Mouse::Left))
 		{
-
 			tilearrpos(newpos, sf::Mouse::getPosition(window));
+
+			if (newpos.x == -2)
+			{
+				selected = false;
+			}
 
 			auto diff = newpos - selpos;
 
@@ -281,9 +314,7 @@ int TimeGame::play()
 				swap_animation = 2;
 				selected = false;
 				init_swap(canim, main_spr, newpos, selpos);
-
 			}
-
 		}
 
 		if (swap_animation)
@@ -303,7 +334,7 @@ int TimeGame::play()
 					swap_animation = 0;
 					disappear_animation = 1;
 
-					init_disappear(anim_2, main_spr, tiles, score);
+					init_disappear(canim, main_spr, tiles, score);
 				}
 				else
 				{
@@ -319,48 +350,26 @@ int TimeGame::play()
 		}
 		else if (disappear_animation)
 		{
-			if (!(anim_2.apply())) // anim_2 because I will need it to restore tiles after drop
+			if (!canim.apply())
 			{
 				disappear_animation = 0;
 				drop_animation = 1;
 				update_score = true;
-
-				copy_tiles(tiles_temp, tiles);
-
-				init_drop(anim, main_spr, tiles_temp);
-
+				init_drop(canim, main_spr, tiles);
 			}
 		}
 		else if (drop_animation)
 		{
-			if (true/*!(anim.apply())*/) // For now, without animation
+			if (!canim.apply())
 			{
 				drop_animation = 0;
-
-				for (size_t i = 0; i < 8; i++) // Restore disappeared tiles
-				{
-					for (size_t k = 0; k < 8; k++)
-					{
-						if (tiles[i][k] == -1) //using old values
-						{
-							main_spr[i][k].setScale(1, 1);
-							main_spr[i][k].setOrigin(0, 0);
-						}
-					}
-				}
-
-				copy_tiles(tiles, tiles_temp);
-
-				regenerate_tiles(tiles);
 
 				generate_main(main_spr, tiles, *tile_texture);
 
 				if (analyze_tiles(tiles))
 				{
 					disappear_animation = 1;
-
-					init_disappear(anim_2, main_spr, tiles, score);
-
+					init_disappear(canim, main_spr, tiles, score);
 				}
 
 			}
@@ -373,7 +382,7 @@ int TimeGame::play()
 
 		++frame_counter;
 
-		std::cout << std::chrono::duration_cast<std::chrono::microseconds>(delta_time).count() << "\n";
+		//std::cout << std::chrono::duration_cast<std::chrono::microseconds>(delta_time).count() << "\n";
 		DBG_time_sum += std::chrono::duration_cast<std::chrono::microseconds>(delta_time).count();
 	
 	}
@@ -422,9 +431,10 @@ void TimeGame::generate_main(sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][
 		{
 			int origw = orw + k * (tilesz + itempad);
 
-			main_spr[i][k].setPosition(origw, origh);
+			main_spr[i][k].setPosition(origw+30, origh+30);
 			main_spr[i][k].setTexture(text);
 			main_spr[i][k].setTextureRect(sf::IntRect(tiles[i][k] * 60, 0, 60, 60));
+			main_spr[i][k].setOrigin(30,30);
 		}
 	}
 }
@@ -615,11 +625,17 @@ void TimeGame::tilearrpos(sf::Vector2i &selpos, const sf::Vector2i &coords)
 	int orh = whpad + headh + mainpad; // origin height
 	int orw = wwpad + sidew + mainpad; // origin width
 
+
+
 	if (coords.x < orw ||
-		coords.x >(width - wwpad) ||
+		coords.x >(width - wwpad - mainpad) ||
 		coords.y < orh ||
-		coords.y >(height - whpad) ||
-		((coords.x - orw) / 64.0 - (int)((coords.x - orw) / 64.0) > 0.9375) ||
+		coords.y >(height - whpad - mainpad))
+	{
+		selpos.x = -2;
+		selpos.y = -2;
+	}
+	else if (((coords.x - orw) / 64.0 - (int)((coords.x - orw) / 64.0) > 0.9375) ||
 		((coords.y - orh) / 64.0 - (int)((coords.y - orh) / 64.0) > 0.9375)
 		)
 	{
@@ -658,45 +674,19 @@ void TimeGame::init_swap(CorrAnimation &anim, sf::Sprite(&main_spr)[8][8], sf::V
 		dir = AnimationDir::Down;
 	}
 
-	anim.add(&main_spr[selpos.y][selpos.x], AnimationType::Move, dir, 30, 2);
-	anim.add(&main_spr[newpos.y][newpos.x], AnimationType::Move, opposite_dir(dir), 30, 2);
+	float scale_1 {1.01222893987}, scale_2 {0.987918800389};
+
+	anim.add(&main_spr[selpos.y][selpos.x], AnimationType::Move, dir, 30, 2.13);
+	anim.add(&main_spr[selpos.y][selpos.x], AnimationType::Scale, dir, 15, scale_1);
+	anim.add(&main_spr[selpos.y][selpos.x], AnimationType::Scale, dir, 15, scale_2, 15);
+
+	anim.add(&main_spr[newpos.y][newpos.x], AnimationType::Move, opposite_dir(dir), 30, 2.13);
+	anim.add(&main_spr[newpos.y][newpos.x], AnimationType::Scale, dir, 15, scale_2);
+	anim.add(&main_spr[newpos.y][newpos.x], AnimationType::Scale, dir, 15, scale_1, 15);
 }
-
-void TimeGame::init_swap(Animation &a1, Animation &a2, sf::Sprite(&main_spr)[8][8], sf::Vector2i newpos, sf::Vector2i selpos)
+void TimeGame::init_disappear(CorrAnimation &canim, sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][8], int &score)
 {
-	a1.clear();
-	a2.clear();
-
-	auto diff = newpos - selpos;
-	AnimationDir dir;
-
-	if (diff.x == -1)
-	{
-		dir = AnimationDir::Left;
-	}
-	else if (diff.x == 1)
-	{
-		dir = AnimationDir::Right;
-	}
-	else if (diff.y == -1)
-	{
-		dir = AnimationDir::Top;
-	}
-	else
-	{
-		dir = AnimationDir::Down;
-	}
-
-	a1.set_animation(AnimationType::Move, dir, 30, 2);
-	a1.add(&main_spr[selpos.y][selpos.x]);
-	a2.set_animation(AnimationType::Move, opposite_dir(dir), 30, 2);
-	a2.add(&main_spr[newpos.y][newpos.x]);
-
-}
-
-void TimeGame::init_disappear(Animation &a, sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][8], int &score)
-{
-	a.clear();
+	canim.clear();
 
 	for (size_t i = 0; i < 8; i++)
 	{
@@ -705,50 +695,76 @@ void TimeGame::init_disappear(Animation &a, sf::Sprite(&main_spr)[8][8], const c
 			if (tiles[i][k] == -1)
 			{
 				score += 100;
-				main_spr[i][k].setOrigin(30, 30);
-				main_spr[i][k].move(30, 30); // to compensate origin move
-				a.add(&main_spr[i][k]);
+				canim.add(&main_spr[i][k], AnimationType::Scale, AnimationDir::Down, 60, 0.926118728129);
 			}
 		}
 	}
-
-	a.set_animation(AnimationType::Disappear, AnimationDir::Down, 60, 0.85);
-
 }
 
-void TimeGame::init_drop(Animation &a, sf::Sprite(&main_spr)[8][8], char(&tiles_temp)[8][8])
+void TimeGame::init_drop(CorrAnimation &canim, sf::Sprite(&main_spr)[8][8], char(&tiles)[8][8])
 {
-	a.clear();
+	canim.clear();
 
-	int in_col; // number of -1 in column
+	int orh = whpad + headh + mainpad; // origin height (of game zone)
+	int orw = wwpad + sidew + mainpad; // origin width
 
-	for (int i = 0; i < 8; ++i) // row
+	int total; // number of -1 in column; used for iterations
+	int orig_total; // the same; used as constant
+
+	// TODO move tiles_temp declaration here
+	// TODO: think, do we actually need the second tiles array now? 
+	//copy_tiles(tiles_temp, tiles);
+
+	char temp_row[8]; // to keep new tiles before writing to main tiles array
+
+	for (int row = 0; row < 8; ++row) 
 	{
-		in_col = 0;
-		for (int k = 0, top = 0; k < 8; ++k) // column
-		{
-			if (tiles_temp[k][i] == -1)
-			{
-				++in_col;
+		total = 0;
+		orig_total = 0;
 
-				for (int r = k; r >= in_col; --r)
-				{
-					tiles_temp[r][i] = tiles_temp[r - 1][i];
-					//a.add(&main_spr[r-1][i]);
-				}
-				tiles_temp[in_col - 1][i] = -2;
+		for (int col = 0; col < 8; ++col)
+		{
+			if (tiles[col][row] == -1)
+			{
+				++orig_total;
 			}
 		}
+	
+		for (int col = 7; col >= 0; --col)
+		{
+			if (tiles[col][row] == -1)
+			{
+				++total;
+			
+				char new_tile = rand() % 5;
+
+				main_spr[col][row].setScale(1,1);
+				main_spr[col][row].setTexture(*tile_texture);
+				main_spr[col][row].setTextureRect(sf::IntRect(new_tile * 60, 0, 60, 60));
+					
+				main_spr[col][row].setPosition(orw + 64 * row + 30, orh - 64 * total + 30);
+
+				temp_row[total - 1] = new_tile;
+
+				canim.add(&main_spr[col][row], AnimationType::Move, AnimationDir::Down, orig_total * 20, 3.2);
+
+			}
+			else
+			{
+				if (total)
+				{
+					canim.add(&main_spr[col][row], AnimationType::Move, AnimationDir::Down, total*20, 3.2);
+					tiles[col + total][row] = tiles[col][row];
+				}
+			}
+		}
+
+		for (size_t i = 0; i < total; i++)
+		{
+			tiles[i][row] = temp_row[total - i - 1];
+		}
+
 	}
-
-	//a.set_animation(AnimationType::Move, AnimationDir::Down, 30, 2);
-
-}
-
-void TimeGame::reverse_swap(Animation &a1, Animation &a2)
-{
-	a1.set_animation(AnimationType::Move, a1.get_dir(), 30, 2); // No need for reversion of dir; object are swapped in main_spr
-	a2.set_animation(AnimationType::Move, a2.get_dir(), 30, 2);
 }
 
 void TimeGame::copy_tiles(char(&to)[8][8], const char(&from)[8][8])

@@ -12,18 +12,17 @@ enum class AnimationDir
 enum class AnimationType
 {
 	Move, 
-	Disappear
+	Scale
 };
 
 AnimationDir opposite_dir(const AnimationDir &dir);
 
-
 class CorrAnimation
 {
 public:
-	void add(sf::Sprite *sprite, AnimationType type, AnimationDir dir, int frames, float delta_per_frame)
+	void add(sf::Sprite *sprite, AnimationType type, AnimationDir dir, int frames, float delta_per_frame, int delay = 0)
 	{
-		auto &obj = objects.emplace_back(sprite, type, frames);
+		auto &obj = objects.emplace_back(sprite, type, frames, delay);
 
 		if (type == AnimationType::Move)
 		{
@@ -57,13 +56,15 @@ public:
 			obj.off = off;
 
 		}
-		else if (type == AnimationType::Disappear)
+		else if (type == AnimationType::Scale)
 		{
-			obj.scale = 255.0 / frames;
+			obj.scale = delta_per_frame;
 		}
+
 	}
 	void clear()
 	{
+		frame_counter = 0;
 		objects.clear();
 	}
 	bool apply()
@@ -72,7 +73,7 @@ public:
 
 		for (auto &i : objects)
 		{
-			if (i.frames)
+			if (frame_counter < (i.frames + i.delay) && frame_counter >= i.delay)
 			{
 				to_continue = true;
 
@@ -80,38 +81,38 @@ public:
 				{
 					i.sprite->move(i.off);
 				}
-				else if (i.type == AnimationType::Disappear)
+				else if (i.type == AnimationType::Scale)
 				{
 					i.sprite->scale(i.scale, i.scale);
 				}
 
-				--i.frames;
 			}
 		}
+
+		++frame_counter;
 
 		return to_continue;
 	}
 
 	void repeat()
 	{
-		for (auto &i : objects)
-		{
-			i.frames = i.init_frames;
-		}
+		frame_counter = 0;
 	}
 
 private:
 
+	int frame_counter = 0;
+
 	struct AnimObj
 	{
-		AnimObj(sf::Sprite *sprite_, AnimationType type_, int frames_) :
-			sprite{sprite_}, type{type_}, init_frames{frames_}, frames{frames_}
+		AnimObj(sf::Sprite *sprite_, AnimationType type_, int frames_, int delay_) :
+			sprite{sprite_}, type{type_}, frames{frames_}, delay{delay_}
 		{}
 
 		sf::Sprite *sprite;
 		AnimationType type;
-		const int init_frames;
-		int frames;
+		const int frames;
+		const int delay;
 	
 		union
 		{
