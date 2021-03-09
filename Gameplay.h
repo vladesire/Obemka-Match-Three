@@ -3,32 +3,11 @@
 
 #include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
-
-#include <chrono>
-#include <thread>
-#include <string>
-
 #include "ResLoader.h"
 #include "Animation.h"
-
-
-//FOR DEBUG ONLY!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#include <iostream>
-inline void ___print_tiles(char(&tiles)[8][8])
-{
-	std::cout << "\nTiles dump\n";
-	for (size_t i = 0; i < 8; i++)
-	{
-		for (size_t k = 0; k < 8; k++)
-		{
-			std::cout << (int)tiles[i][k] << " ";
-		}
-
-		std::cout << "\n";
-	}
-}
-//FOR DEBUG ONLY!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+#include <string>
+#include <chrono>
+#include <thread>
 
 class TimeGame
 {
@@ -52,8 +31,6 @@ private:
 	const sf::Font *fonts;
 	sf::Text texts[5]; /* Header, Score, Time left, High Score, Gameover*/
 
-	const int height = 640, width = 740, headw = 692, headh = 80, sidew = 160, sideh = 532, mainsz = 532, mainpad = 12, itempad = 4, tilesz = 60;
-	const int whpad = 14, wwpad = 24; // window height/width padding
 
 	int max_score, score = 0;
 	
@@ -66,8 +43,6 @@ private:
 	const sf::Texture *tile_texture, *gameover_texture;
 
 	char tiles[8][8];
-	char tiles_temp[8][8]; // for drop animation
-
 
 	sf::Music *soundtrack, *victory, *defeat;
 
@@ -85,10 +60,6 @@ private:
 	void generate_tiles(char(&tiles)[8][8]);
 
 	void tilearrpos(sf::Vector2i &selpos, const sf::Vector2i &coords);
-
-	void init_swap(CorrAnimation &anim, sf::Sprite(&main_spr)[8][8], sf::Vector2i newpos, sf::Vector2i selpos);
-	void init_disappear(CorrAnimation &canim, sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][8], int &score);
-	void init_drop(CorrAnimation &canim, sf::Sprite(&main_spr)[8][8], char(&tiles_temp)[8][8]);
 
 	void copy_tiles(char(&to)[8][8], const char(&from)[8][8]);
 

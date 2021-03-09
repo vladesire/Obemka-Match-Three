@@ -1,6 +1,13 @@
 #include "Gameplay.h"
 #include "ExitAsk.h"
 
+#include "WindowConstants.h"
+
+void init_swap(Animation &animation, sf::Sprite(&main_spr)[8][8], sf::Vector2i newpos, sf::Vector2i selpos);
+void init_disappear(Animation &animation, sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][8], int &score);
+void init_fall(Animation &animation, sf::Sprite(&main_spr)[8][8], char(&tiles)[8][8]);
+
+
 void TimeGame::initialize(ResLoader &resloader)
 {
 	auto textures = resloader.get_textures(); 
@@ -105,7 +112,14 @@ void TimeGame::initialize(ResLoader &resloader)
 
 int TimeGame::play()
 {
-	unsigned int frame_counter = 0; // FPS = 120
+	constexpr int FPS = 120;
+	constexpr int frame_delay = 1.0 / FPS * 1000000; // In microseconds
+
+	// TODO: give them better names and move to WindowConstants
+	constexpr int orh = whpad + headh + mainpad; // origin height (of game zone)
+	constexpr int orw = wwpad + sidew + mainpad; // origin width
+
+	unsigned int frame_counter = 0;
 	unsigned int seconds = 90 + 1;
 
 	bool gameover_once = true;
@@ -118,32 +132,24 @@ int TimeGame::play()
 	bool exit_lock = true;
 	int frames_left = 120 * 5 + 60; // wait for ending sound 
 
+	// Explain
+	Animation animation;
 	int swap_animation = 0; // to allow double-time animation
 	int disappear_animation = 0;
-	int drop_animation = 0;
+	int fall_animation = 0;
 
 	std::chrono::system_clock::time_point start_time;
 	std::chrono::system_clock::duration delta_time;
 
-	Animation anim, anim_2; // to handle two different collective animations; anim_2 for disappear, second swap
-
-	CorrAnimation canim;
-
-	soundtrack->play();
-
-	unsigned long long DBG_time_sum = 0;
-
 
 	sf::RectangleShape screen;
-
-	// TODO: make them part of the class?
-	int orh = whpad + headh + mainpad; // origin height (of game zone)
-	int orw = wwpad + sidew + mainpad; // origin width
-
+	
 	screen.setFillColor(sf::Color(96, 73, 82));
 	screen.setPosition(orw, 0);
-	screen.setSize(sf::Vector2f(width - wwpad, orh));
+	screen.setSize(sf::Vector2f(WIDTH - wwpad, orh));
 
+
+	soundtrack->play();
 
 	while (true)
 	{
@@ -180,7 +186,7 @@ int TimeGame::play()
 		window.draw(screen);
 
 		// Layer 2
-		if (!seconds && !(swap_animation || disappear_animation || drop_animation))
+		if (!seconds && !(swap_animation || disappear_animation || fall_animation))
 		{
 			if (gameover_once)
 			{
@@ -220,7 +226,6 @@ int TimeGame::play()
 
 		}
 		
-		
 		// Layer 1
 		for (size_t i = 0; i < 4; i++)
 		{
@@ -235,7 +240,7 @@ int TimeGame::play()
 		sf::Event event;
 		while (window.pollEvent(event))
 		{
-			if (!(swap_animation || disappear_animation || drop_animation) && seconds && event.type == sf::Event::MouseButtonPressed)
+			if (!(swap_animation || disappear_animation || fall_animation) && seconds && event.type == sf::Event::MouseButtonPressed)
 			{
 				if (selected)
 				{
@@ -254,7 +259,7 @@ int TimeGame::play()
 						sounds[tiles[selpos.y][selpos.x]][rand() % 5].play();
 						swap_animation = 2;
 						selected = false;
-						init_swap(canim, main_spr, newpos, selpos);
+						init_swap(animation, main_spr, newpos, selpos);
 					}
 					else
 					{
@@ -271,8 +276,6 @@ int TimeGame::play()
 			}
 			else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
 			{
-				std::cout << "Average time for a frame in microseconds: " << DBG_time_sum / (double)frame_counter << "\n";
-
 				if (exit_question(window, fonts))
 				{
 					soundtrack->stop();
@@ -286,7 +289,7 @@ int TimeGame::play()
 				if (exit_question(window, fonts))
 					return 0;
 			}
-			else if (!exit_lock && (!seconds && !(swap_animation || disappear_animation || drop_animation)) && (event.type == sf::Event::MouseButtonReleased || event.type == sf::Event::KeyReleased))
+			else if (!exit_lock && (!seconds && !(swap_animation || disappear_animation || fall_animation)) && (event.type == sf::Event::MouseButtonReleased || event.type == sf::Event::KeyReleased))
 			{
 				soundtrack->stop();
 				victory->stop();
@@ -313,13 +316,13 @@ int TimeGame::play()
 				sounds[tiles[selpos.y][selpos.x]][rand() % 5].play();
 				swap_animation = 2;
 				selected = false;
-				init_swap(canim, main_spr, newpos, selpos);
+				init_swap(animation, main_spr, newpos, selpos);
 			}
 		}
 
 		if (swap_animation)
 		{
-			if (!canim.apply())
+			if (!animation.apply())
 			{
 				auto temp = tiles[selpos.y][selpos.x];
 				tiles[selpos.y][selpos.x] = tiles[newpos.y][newpos.x];
@@ -334,13 +337,13 @@ int TimeGame::play()
 					swap_animation = 0;
 					disappear_animation = 1;
 
-					init_disappear(canim, main_spr, tiles, score);
+					init_disappear(animation, main_spr, tiles, score);
 				}
 				else
 				{
 					if (swap_animation == 2)
 					{
-						canim.repeat();
+						animation.repeat();
 					}
 					--swap_animation;
 				}
@@ -350,41 +353,36 @@ int TimeGame::play()
 		}
 		else if (disappear_animation)
 		{
-			if (!canim.apply())
+			if (!animation.apply())
 			{
 				disappear_animation = 0;
-				drop_animation = 1;
+				fall_animation = 1;
 				update_score = true;
-				init_drop(canim, main_spr, tiles);
+				init_fall(animation, main_spr, tiles);
 			}
 		}
-		else if (drop_animation)
+		else if (fall_animation)
 		{
-			if (!canim.apply())
+			if (!animation.apply())
 			{
-				drop_animation = 0;
+				fall_animation = 0;
 
 				generate_main(main_spr, tiles, *tile_texture);
 
 				if (analyze_tiles(tiles))
 				{
 					disappear_animation = 1;
-					init_disappear(canim, main_spr, tiles, score);
+					init_disappear(animation, main_spr, tiles, score);
 				}
 
 			}
 		}
 
-
 		delta_time = std::chrono::system_clock::now() - start_time;
 
-		std::this_thread::sleep_for(std::chrono::microseconds(8333 - std::chrono::duration_cast<std::chrono::microseconds>(delta_time).count()));
+		std::this_thread::sleep_for(std::chrono::microseconds(frame_delay - std::chrono::duration_cast<std::chrono::microseconds>(delta_time).count()));
 
 		++frame_counter;
-
-		//std::cout << std::chrono::duration_cast<std::chrono::microseconds>(delta_time).count() << "\n";
-		DBG_time_sum += std::chrono::duration_cast<std::chrono::microseconds>(delta_time).count();
-	
 	}
 
 	return 1;
@@ -394,22 +392,22 @@ void TimeGame::init_lines(sf::VertexArray &lines)
 {
 
 	lines[0].position = sf::Vector2f(wwpad, whpad);
-	lines[1].position = sf::Vector2f(width - wwpad, whpad);
+	lines[1].position = sf::Vector2f(WIDTH - wwpad, whpad);
 
 	lines[2].position = sf::Vector2f(wwpad, whpad + headh);
-	lines[3].position = sf::Vector2f(width - wwpad, whpad + headh);
+	lines[3].position = sf::Vector2f(WIDTH - wwpad, whpad + headh);
 
-	lines[4].position = sf::Vector2f(wwpad, height - whpad);
-	lines[5].position = sf::Vector2f(width - wwpad, height - whpad);
+	lines[4].position = sf::Vector2f(wwpad, HEIGHT - whpad);
+	lines[5].position = sf::Vector2f(WIDTH - wwpad, HEIGHT - whpad);
 
 	lines[6].position = sf::Vector2f(wwpad, whpad);
-	lines[7].position = sf::Vector2f(wwpad, height - whpad);
+	lines[7].position = sf::Vector2f(wwpad, HEIGHT - whpad);
 
-	lines[8].position = sf::Vector2f(width - wwpad, whpad);
-	lines[9].position = sf::Vector2f(width - wwpad, height - whpad);
+	lines[8].position = sf::Vector2f(WIDTH - wwpad, whpad);
+	lines[9].position = sf::Vector2f(WIDTH - wwpad, HEIGHT - whpad);
 
 	lines[10].position = sf::Vector2f(wwpad + sidew, whpad + headh);
-	lines[11].position = sf::Vector2f(wwpad + sidew, height - whpad);
+	lines[11].position = sf::Vector2f(wwpad + sidew, HEIGHT - whpad);
 
 	for (size_t i = 0; i < 12; ++i)
 	{
@@ -626,11 +624,10 @@ void TimeGame::tilearrpos(sf::Vector2i &selpos, const sf::Vector2i &coords)
 	int orw = wwpad + sidew + mainpad; // origin width
 
 
-
 	if (coords.x < orw ||
-		coords.x >(width - wwpad - mainpad) ||
+		coords.x >(WIDTH - wwpad - mainpad) ||
 		coords.y < orh ||
-		coords.y >(height - whpad - mainpad))
+		coords.y >(HEIGHT - whpad - mainpad))
 	{
 		selpos.x = -2;
 		selpos.y = -2;
@@ -650,9 +647,9 @@ void TimeGame::tilearrpos(sf::Vector2i &selpos, const sf::Vector2i &coords)
 
 }
 
-void TimeGame::init_swap(CorrAnimation &anim, sf::Sprite(&main_spr)[8][8], sf::Vector2i newpos, sf::Vector2i selpos)
+void init_swap(Animation &animation, sf::Sprite(&main_spr)[8][8], sf::Vector2i newpos, sf::Vector2i selpos)
 {
-	anim.clear();
+	animation.clear();
 
 	auto diff = newpos - selpos;
 	AnimationDir dir;
@@ -676,17 +673,17 @@ void TimeGame::init_swap(CorrAnimation &anim, sf::Sprite(&main_spr)[8][8], sf::V
 
 	float scale_1 {1.01222893987}, scale_2 {0.987918800389};
 
-	anim.add(&main_spr[selpos.y][selpos.x], AnimationType::Move, dir, 30, 2.13);
-	anim.add(&main_spr[selpos.y][selpos.x], AnimationType::Scale, dir, 15, scale_1);
-	anim.add(&main_spr[selpos.y][selpos.x], AnimationType::Scale, dir, 15, scale_2, 15);
+	animation.add(&main_spr[selpos.y][selpos.x], AnimationType::Move, dir, 30, 2.13);
+	animation.add(&main_spr[selpos.y][selpos.x], AnimationType::Scale, dir, 15, scale_1);
+	animation.add(&main_spr[selpos.y][selpos.x], AnimationType::Scale, dir, 15, scale_2, 15);
 
-	anim.add(&main_spr[newpos.y][newpos.x], AnimationType::Move, opposite_dir(dir), 30, 2.13);
-	anim.add(&main_spr[newpos.y][newpos.x], AnimationType::Scale, dir, 15, scale_2);
-	anim.add(&main_spr[newpos.y][newpos.x], AnimationType::Scale, dir, 15, scale_1, 15);
+	animation.add(&main_spr[newpos.y][newpos.x], AnimationType::Move, opposite_dir(dir), 30, 2.13);
+	animation.add(&main_spr[newpos.y][newpos.x], AnimationType::Scale, dir, 15, scale_2);
+	animation.add(&main_spr[newpos.y][newpos.x], AnimationType::Scale, dir, 15, scale_1, 15);
 }
-void TimeGame::init_disappear(CorrAnimation &canim, sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][8], int &score)
+void init_disappear(Animation &animation, sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][8], int &score)
 {
-	canim.clear();
+	animation.clear();
 
 	for (size_t i = 0; i < 8; i++)
 	{
@@ -695,15 +692,14 @@ void TimeGame::init_disappear(CorrAnimation &canim, sf::Sprite(&main_spr)[8][8],
 			if (tiles[i][k] == -1)
 			{
 				score += 100;
-				canim.add(&main_spr[i][k], AnimationType::Scale, AnimationDir::Down, 60, 0.926118728129);
+				animation.add(&main_spr[i][k], AnimationType::Scale, AnimationDir::Down, 60, 0.926118728129);
 			}
 		}
 	}
 }
-
-void TimeGame::init_drop(CorrAnimation &canim, sf::Sprite(&main_spr)[8][8], char(&tiles)[8][8])
+void init_fall(Animation &animation, sf::Sprite(&main_spr)[8][8], char(&tiles)[8][8])
 {
-	canim.clear();
+	animation.clear();
 
 	int orh = whpad + headh + mainpad; // origin height (of game zone)
 	int orw = wwpad + sidew + mainpad; // origin width
@@ -738,22 +734,20 @@ void TimeGame::init_drop(CorrAnimation &canim, sf::Sprite(&main_spr)[8][8], char
 			
 				char new_tile = rand() % 5;
 
-				main_spr[col][row].setScale(1,1);
-				main_spr[col][row].setTexture(*tile_texture);
+				main_spr[col][row].setScale(1, 1);
 				main_spr[col][row].setTextureRect(sf::IntRect(new_tile * 60, 0, 60, 60));
-					
 				main_spr[col][row].setPosition(orw + 64 * row + 30, orh - 64 * total + 30);
 
 				temp_row[total - 1] = new_tile;
 
-				canim.add(&main_spr[col][row], AnimationType::Move, AnimationDir::Down, orig_total * 20, 3.2);
+				animation.add(&main_spr[col][row], AnimationType::Move, AnimationDir::Down, orig_total * 20, 3.2);
 
 			}
 			else
 			{
 				if (total)
 				{
-					canim.add(&main_spr[col][row], AnimationType::Move, AnimationDir::Down, total*20, 3.2);
+					animation.add(&main_spr[col][row], AnimationType::Move, AnimationDir::Down, total*20, 3.2);
 					tiles[col + total][row] = tiles[col][row];
 				}
 			}
