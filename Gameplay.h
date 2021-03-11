@@ -15,41 +15,32 @@ public:
 	TimeGame(sf::RenderWindow &window_, ResLoader &resloader_)
 		: window{window_}, resloader{resloader_}
 	{
-		initialize(resloader);
+		initialize();
 	}
 
 	int play();
 
 private:
-	/*
-		Tiles codes: 0 - Obeme, 1 - Gorin, 2 - Povar, 3 - Pocik, 4 - Golomyanov
-	*/
-	void initialize(ResLoader &resloader);
-
 	sf::RenderWindow &window;
 	ResLoader &resloader;
+	Animation animation; 
+
+	const sf::Texture *tile_texture, *defeat_texture, *victory_texture;
 	const sf::Font *fonts;
-	sf::Text texts[5]; /* Header, Score, Time left, High Score, Gameover*/
-
-
-	int max_score, score = 0;
 	
-
+	sf::Text texts[5]; /* Header, Score, Time left, High Score, Gameover */
+	sf::Music *soundtrack, *victory, *defeat;
 	sf::VertexArray lines {sf::Lines, 12};
+	sf::Sound sounds[5][5];
+	sf::Sprite gameover;
 
-	sf::Sprite main_spr[8][8];
-	sf::Sprite gameover, spr_victory;
-
-	const sf::Texture *tile_texture, *gameover_texture;
-
+	sf::Sprite tiles_sprites[8][8];
 	char tiles[8][8];
 
-	sf::Music *soundtrack, *victory, *defeat;
-
-	sf::Sound sounds[5][5];
+	int max_score, score = 0;
 
 
-	void init_lines(sf::VertexArray &lines);
+	void initialize();
 
 	void generate_main(sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][8], const sf::Texture &text);
 
@@ -61,8 +52,10 @@ private:
 
 	void tilearrpos(sf::Vector2i &selpos, const sf::Vector2i &coords);
 
-	void copy_tiles(char(&to)[8][8], const char(&from)[8][8]);
-
+	// Set animation up
+	void init_swap(sf::Vector2i newpos, sf::Vector2i selpos);
+	void init_disappear();
+	void init_fall();
 };
 
 #endif // !GAME_PLAY_H_

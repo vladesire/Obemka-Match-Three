@@ -1,14 +1,10 @@
+#include "WindowConstants.h"
 #include "Gameplay.h"
 #include "ExitAsk.h"
 
-#include "WindowConstants.h"
+void init_lines(sf::VertexArray &lines);
 
-void init_swap(Animation &animation, sf::Sprite(&main_spr)[8][8], sf::Vector2i newpos, sf::Vector2i selpos);
-void init_disappear(Animation &animation, sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][8], int &score);
-void init_fall(Animation &animation, sf::Sprite(&main_spr)[8][8], char(&tiles)[8][8]);
-
-
-void TimeGame::initialize(ResLoader &resloader)
+void TimeGame::initialize()
 {
 	auto textures = resloader.get_textures(); 
 	auto soundbuffers = resloader.get_soundbuffers();
@@ -17,22 +13,18 @@ void TimeGame::initialize(ResLoader &resloader)
 
 
 	tile_texture = textures;
-	gameover_texture = textures + 1;
+	defeat_texture = textures + 1;
+	victory_texture = textures + 2;
 
 	init_lines(lines);
 
 	gameover.setScale(.498f, .525f);
-	gameover.setPosition(wwpad + sidew + mainpad, whpad + headh + mainpad);
-	gameover.setTexture(*gameover_texture);
-
-	spr_victory.setScale(.498f, .525f);
-	spr_victory.setPosition(wwpad + sidew + mainpad, whpad + headh + mainpad);
-	spr_victory.setTexture(textures[2]);
+	gameover.setPosition(WINDOW_WPAD + SIDE_W + GAME_PAD, WINDOW_HPAD + HEADER_H + GAME_PAD);
 
 
 	generate_tiles(tiles);
 
-	generate_main(main_spr, tiles, *tile_texture);
+	generate_main(tiles_sprites, tiles, *tile_texture);
 
 
 	/*Respectively: Header, Score, Time left, High Score, Gameover*/
@@ -54,11 +46,11 @@ void TimeGame::initialize(ResLoader &resloader)
 	texts[3].setCharacterSize(30);
 	texts[4].setCharacterSize(50);
 
-	texts[0].setPosition(wwpad + 5, whpad + 20);
-	texts[1].setPosition(wwpad + 5, whpad + headh);
-	texts[2].setPosition(wwpad + 5, whpad + headh + mainsz / 3);
-	texts[3].setPosition(wwpad + 5, whpad + headh + mainsz * 2 / 3);
-	texts[4].setPosition(wwpad + sidew + mainpad + 5, whpad + headh + mainpad + 5);
+	texts[0].setPosition(WINDOW_WPAD + 5, WINDOW_HPAD + 20);
+	texts[1].setPosition(WINDOW_WPAD + 5, WINDOW_HPAD + HEADER_H);
+	texts[2].setPosition(WINDOW_WPAD + 5, WINDOW_HPAD + HEADER_H + GAME_SIZE / 3);
+	texts[3].setPosition(WINDOW_WPAD + 5, WINDOW_HPAD + HEADER_H + GAME_SIZE * 2 / 3);
+	texts[4].setPosition(WINDOW_WPAD + SIDE_W + GAME_PAD + 5, WINDOW_HPAD + HEADER_H + GAME_PAD + 5);
 
 	max_score = resloader.get_userdata()->get_high_score();
 
@@ -109,15 +101,38 @@ void TimeGame::initialize(ResLoader &resloader)
 	}
 
 }
+void init_lines(sf::VertexArray &lines)
+{
+
+	lines[0].position = sf::Vector2f(WINDOW_WPAD, WINDOW_HPAD);
+	lines[1].position = sf::Vector2f(WINDOW_W - WINDOW_WPAD, WINDOW_HPAD);
+
+	lines[2].position = sf::Vector2f(WINDOW_WPAD, WINDOW_HPAD + HEADER_H);
+	lines[3].position = sf::Vector2f(WINDOW_W - WINDOW_WPAD, WINDOW_HPAD + HEADER_H);
+
+	lines[4].position = sf::Vector2f(WINDOW_WPAD, WINDOW_H - WINDOW_HPAD);
+	lines[5].position = sf::Vector2f(WINDOW_W - WINDOW_WPAD, WINDOW_H - WINDOW_HPAD);
+
+	lines[6].position = sf::Vector2f(WINDOW_WPAD, WINDOW_HPAD);
+	lines[7].position = sf::Vector2f(WINDOW_WPAD, WINDOW_H - WINDOW_HPAD);
+
+	lines[8].position = sf::Vector2f(WINDOW_W - WINDOW_WPAD, WINDOW_HPAD);
+	lines[9].position = sf::Vector2f(WINDOW_W - WINDOW_WPAD, WINDOW_H - WINDOW_HPAD);
+
+	lines[10].position = sf::Vector2f(WINDOW_WPAD + SIDE_W, WINDOW_HPAD + HEADER_H);
+	lines[11].position = sf::Vector2f(WINDOW_WPAD + SIDE_W, WINDOW_H - WINDOW_HPAD);
+
+	for (size_t i = 0; i < 12; ++i)
+	{
+		lines[i].color = sf::Color(194, 137, 137);
+	}
+
+}
 
 int TimeGame::play()
 {
 	constexpr int FPS = 120;
 	constexpr int frame_delay = 1.0 / FPS * 1000000; // In microseconds
-
-	// TODO: give them better names and move to WindowConstants
-	constexpr int orh = whpad + headh + mainpad; // origin height (of game zone)
-	constexpr int orw = wwpad + sidew + mainpad; // origin width
 
 	unsigned int frame_counter = 0;
 	unsigned int seconds = 90 + 1;
@@ -126,14 +141,12 @@ int TimeGame::play()
 	bool update_score = true;
 
 	bool selected = false; // A tile is seleceted for movement
-	sf::Vector2i selpos; // selected tile's position in main_spr array
+	sf::Vector2i selpos; // selected tile's position in tiles_sprites array
 	sf::Vector2i newpos; // tile that's paired with selpos to swap
 
 	bool exit_lock = true;
-	int frames_left = 120 * 5 + 60; // wait for ending sound 
+	int frames_left = FPS * 5.5; // wait for ending sound 
 
-	// Explain
-	Animation animation;
 	int swap_animation = 0; // to allow double-time animation
 	int disappear_animation = 0;
 	int fall_animation = 0;
@@ -142,11 +155,11 @@ int TimeGame::play()
 	std::chrono::system_clock::duration delta_time;
 
 
+	// It is used to hide "falling" tiles that are initially rendered outside the game zone.
 	sf::RectangleShape screen;
-	
 	screen.setFillColor(sf::Color(96, 73, 82));
-	screen.setPosition(orw, 0);
-	screen.setSize(sf::Vector2f(WIDTH - wwpad, orh));
+	screen.setPosition(GAME_X, 0);
+	screen.setSize(sf::Vector2f(WINDOW_W - WINDOW_WPAD, GAME_Y));
 
 
 	soundtrack->play();
@@ -173,19 +186,19 @@ int TimeGame::play()
 			for (size_t k = 0; k < 8; k++)
 			{
 				if (!(swap_animation && selpos.x == k && selpos.y == i))
-					window.draw(main_spr[i][k]);
+					window.draw(tiles_sprites[i][k]);
 			}
 		}
 
 		if (swap_animation)
 		{
-			window.draw(main_spr[selpos.y][selpos.x]);
+			window.draw(tiles_sprites[selpos.y][selpos.x]);
 		}
 
 		// Layer: invisible screen
 		window.draw(screen);
 
-		// Layer 2
+		// Layer 2 : Game over
 		if (!seconds && !(swap_animation || disappear_animation || fall_animation))
 		{
 			if (gameover_once)
@@ -198,30 +211,23 @@ int TimeGame::play()
 					resloader.get_userdata()->set_high_score(score);
 					resloader.write_userdata();
 
+					gameover.setTexture(*victory_texture);
 					victory->play();
 				}
 				else
 				{
+					gameover.setTexture(*defeat_texture);
 					defeat->play();
 				}
 			}
-			if (max_score < score)
-			{
-				window.draw(spr_victory);
-			}
-			else
-			{
-				window.draw(gameover);
-			}
 
-			if (!frames_left)
+			window.draw(gameover);
+
+
+			if (!--frames_left)
 			{
 				exit_lock = false;
-				window.draw(texts[4]);
-			}
-			else
-			{
-				--frames_left;
+				window.draw(texts[4]); // "Press any key"
 			}
 
 		}
@@ -259,7 +265,7 @@ int TimeGame::play()
 						sounds[tiles[selpos.y][selpos.x]][rand() % 5].play();
 						swap_animation = 2;
 						selected = false;
-						init_swap(animation, main_spr, newpos, selpos);
+						init_swap(newpos, selpos);
 					}
 					else
 					{
@@ -316,7 +322,7 @@ int TimeGame::play()
 				sounds[tiles[selpos.y][selpos.x]][rand() % 5].play();
 				swap_animation = 2;
 				selected = false;
-				init_swap(animation, main_spr, newpos, selpos);
+				init_swap(newpos, selpos);
 			}
 		}
 
@@ -328,7 +334,7 @@ int TimeGame::play()
 				tiles[selpos.y][selpos.x] = tiles[newpos.y][newpos.x];
 				tiles[newpos.y][newpos.x] = temp;
 
-				generate_main(main_spr, tiles, *tile_texture);
+				generate_main(tiles_sprites, tiles, *tile_texture);
 
 				update_score = true;
 
@@ -337,7 +343,7 @@ int TimeGame::play()
 					swap_animation = 0;
 					disappear_animation = 1;
 
-					init_disappear(animation, main_spr, tiles, score);
+					init_disappear();
 				}
 				else
 				{
@@ -358,7 +364,7 @@ int TimeGame::play()
 				disappear_animation = 0;
 				fall_animation = 1;
 				update_score = true;
-				init_fall(animation, main_spr, tiles);
+				init_fall();
 			}
 		}
 		else if (fall_animation)
@@ -367,12 +373,12 @@ int TimeGame::play()
 			{
 				fall_animation = 0;
 
-				generate_main(main_spr, tiles, *tile_texture);
+				generate_main(tiles_sprites, tiles, *tile_texture);
 
 				if (analyze_tiles(tiles))
 				{
 					disappear_animation = 1;
-					init_disappear(animation, main_spr, tiles, score);
+					init_disappear();
 				}
 
 			}
@@ -388,51 +394,21 @@ int TimeGame::play()
 	return 1;
 }
 
-void TimeGame::init_lines(sf::VertexArray &lines)
+
+void TimeGame::generate_main(sf::Sprite(&tiles_sprites)[8][8], const char(&tiles)[8][8], const sf::Texture &text)
 {
-
-	lines[0].position = sf::Vector2f(wwpad, whpad);
-	lines[1].position = sf::Vector2f(WIDTH - wwpad, whpad);
-
-	lines[2].position = sf::Vector2f(wwpad, whpad + headh);
-	lines[3].position = sf::Vector2f(WIDTH - wwpad, whpad + headh);
-
-	lines[4].position = sf::Vector2f(wwpad, HEIGHT - whpad);
-	lines[5].position = sf::Vector2f(WIDTH - wwpad, HEIGHT - whpad);
-
-	lines[6].position = sf::Vector2f(wwpad, whpad);
-	lines[7].position = sf::Vector2f(wwpad, HEIGHT - whpad);
-
-	lines[8].position = sf::Vector2f(WIDTH - wwpad, whpad);
-	lines[9].position = sf::Vector2f(WIDTH - wwpad, HEIGHT - whpad);
-
-	lines[10].position = sf::Vector2f(wwpad + sidew, whpad + headh);
-	lines[11].position = sf::Vector2f(wwpad + sidew, HEIGHT - whpad);
-
-	for (size_t i = 0; i < 12; ++i)
-	{
-		lines[i].color = sf::Color(194, 137, 137);
-	}
-
-}
-
-void TimeGame::generate_main(sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][8], const sf::Texture &text)
-{
-	int orh = whpad + headh + mainpad; // origin height
-	int orw = wwpad + sidew + mainpad; // origin width
-
 	for (size_t i = 0; i < 8; ++i)
 	{
-		int origh = orh + i * (tilesz + itempad);
+		int origh = GAME_Y + i * (TILE_SIZE + TILE_PAD);
 
 		for (size_t k = 0; k < 8; ++k)
 		{
-			int origw = orw + k * (tilesz + itempad);
+			int origw = GAME_X + k * (TILE_SIZE + TILE_PAD);
 
-			main_spr[i][k].setPosition(origw+30, origh+30);
-			main_spr[i][k].setTexture(text);
-			main_spr[i][k].setTextureRect(sf::IntRect(tiles[i][k] * 60, 0, 60, 60));
-			main_spr[i][k].setOrigin(30,30);
+			tiles_sprites[i][k].setPosition(origw+30, origh+30);
+			tiles_sprites[i][k].setTexture(text);
+			tiles_sprites[i][k].setTextureRect(sf::IntRect(tiles[i][k] * 60, 0, 60, 60));
+			tiles_sprites[i][k].setOrigin(30,30);
 		}
 	}
 }
@@ -620,20 +596,16 @@ void TimeGame::generate_tiles(char(&tiles)[8][8])
 
 void TimeGame::tilearrpos(sf::Vector2i &selpos, const sf::Vector2i &coords)
 {
-	int orh = whpad + headh + mainpad; // origin height
-	int orw = wwpad + sidew + mainpad; // origin width
-
-
-	if (coords.x < orw ||
-		coords.x >(WIDTH - wwpad - mainpad) ||
-		coords.y < orh ||
-		coords.y >(HEIGHT - whpad - mainpad))
+	if (coords.x < GAME_X ||
+		coords.x >(WINDOW_W - WINDOW_WPAD - GAME_PAD) ||
+		coords.y < GAME_Y ||
+		coords.y >(WINDOW_H - WINDOW_HPAD - GAME_PAD))
 	{
 		selpos.x = -2;
 		selpos.y = -2;
 	}
-	else if (((coords.x - orw) / 64.0 - (int)((coords.x - orw) / 64.0) > 0.9375) ||
-		((coords.y - orh) / 64.0 - (int)((coords.y - orh) / 64.0) > 0.9375)
+	else if (((coords.x - GAME_X) / 64.0 - (int)((coords.x - GAME_X) / 64.0) > 0.9375) ||
+		((coords.y - GAME_Y) / 64.0 - (int)((coords.y - GAME_Y) / 64.0) > 0.9375)
 		)
 	{
 		selpos.x = -1;
@@ -641,13 +613,13 @@ void TimeGame::tilearrpos(sf::Vector2i &selpos, const sf::Vector2i &coords)
 	}
 	else
 	{
-		selpos.x = (coords.x - orw) / 64.0;
-		selpos.y = (coords.y - orh) / 64.0;
+		selpos.x = (coords.x - GAME_X) / 64.0;
+		selpos.y = (coords.y - GAME_Y) / 64.0;
 	}
 
 }
 
-void init_swap(Animation &animation, sf::Sprite(&main_spr)[8][8], sf::Vector2i newpos, sf::Vector2i selpos)
+void TimeGame::init_swap(sf::Vector2i newpos, sf::Vector2i selpos)
 {
 	animation.clear();
 
@@ -673,15 +645,15 @@ void init_swap(Animation &animation, sf::Sprite(&main_spr)[8][8], sf::Vector2i n
 
 	float scale_1 {1.01222893987}, scale_2 {0.987918800389};
 
-	animation.add(&main_spr[selpos.y][selpos.x], AnimationType::Move, dir, 30, 2.13);
-	animation.add(&main_spr[selpos.y][selpos.x], AnimationType::Scale, dir, 15, scale_1);
-	animation.add(&main_spr[selpos.y][selpos.x], AnimationType::Scale, dir, 15, scale_2, 15);
+	animation.add(&tiles_sprites[selpos.y][selpos.x], AnimationType::Move, dir, 30, 2.13);
+	animation.add(&tiles_sprites[selpos.y][selpos.x], AnimationType::Scale, dir, 15, scale_1);
+	animation.add(&tiles_sprites[selpos.y][selpos.x], AnimationType::Scale, dir, 15, scale_2, 15);
 
-	animation.add(&main_spr[newpos.y][newpos.x], AnimationType::Move, opposite_dir(dir), 30, 2.13);
-	animation.add(&main_spr[newpos.y][newpos.x], AnimationType::Scale, dir, 15, scale_2);
-	animation.add(&main_spr[newpos.y][newpos.x], AnimationType::Scale, dir, 15, scale_1, 15);
+	animation.add(&tiles_sprites[newpos.y][newpos.x], AnimationType::Move, opposite_dir(dir), 30, 2.13);
+	animation.add(&tiles_sprites[newpos.y][newpos.x], AnimationType::Scale, dir, 15, scale_2);
+	animation.add(&tiles_sprites[newpos.y][newpos.x], AnimationType::Scale, dir, 15, scale_1, 15);
 }
-void init_disappear(Animation &animation, sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][8], int &score)
+void TimeGame::init_disappear()
 {
 	animation.clear();
 
@@ -692,17 +664,14 @@ void init_disappear(Animation &animation, sf::Sprite(&main_spr)[8][8], const cha
 			if (tiles[i][k] == -1)
 			{
 				score += 100;
-				animation.add(&main_spr[i][k], AnimationType::Scale, AnimationDir::Down, 60, 0.926118728129);
+				animation.add(&tiles_sprites[i][k], AnimationType::Scale, AnimationDir::Down, 60, 0.926118728129);
 			}
 		}
 	}
 }
-void init_fall(Animation &animation, sf::Sprite(&main_spr)[8][8], char(&tiles)[8][8])
+void TimeGame::init_fall()
 {
 	animation.clear();
-
-	int orh = whpad + headh + mainpad; // origin height (of game zone)
-	int orw = wwpad + sidew + mainpad; // origin width
 
 	int total; // number of -1 in column; used for iterations
 	int orig_total; // the same; used as constant
@@ -734,20 +703,20 @@ void init_fall(Animation &animation, sf::Sprite(&main_spr)[8][8], char(&tiles)[8
 			
 				char new_tile = rand() % 5;
 
-				main_spr[col][row].setScale(1, 1);
-				main_spr[col][row].setTextureRect(sf::IntRect(new_tile * 60, 0, 60, 60));
-				main_spr[col][row].setPosition(orw + 64 * row + 30, orh - 64 * total + 30);
+				tiles_sprites[col][row].setScale(1, 1);
+				tiles_sprites[col][row].setTextureRect(sf::IntRect(new_tile * 60, 0, 60, 60));
+				tiles_sprites[col][row].setPosition(GAME_X + 64 * row + 30, GAME_Y - 64 * total + 30);
 
 				temp_row[total - 1] = new_tile;
 
-				animation.add(&main_spr[col][row], AnimationType::Move, AnimationDir::Down, orig_total * 20, 3.2);
+				animation.add(&tiles_sprites[col][row], AnimationType::Move, AnimationDir::Down, orig_total * 20, 3.2);
 
 			}
 			else
 			{
 				if (total)
 				{
-					animation.add(&main_spr[col][row], AnimationType::Move, AnimationDir::Down, total*20, 3.2);
+					animation.add(&tiles_sprites[col][row], AnimationType::Move, AnimationDir::Down, total*20, 3.2);
 					tiles[col + total][row] = tiles[col][row];
 				}
 			}
@@ -758,16 +727,5 @@ void init_fall(Animation &animation, sf::Sprite(&main_spr)[8][8], char(&tiles)[8
 			tiles[i][row] = temp_row[total - i - 1];
 		}
 
-	}
-}
-
-void TimeGame::copy_tiles(char(&to)[8][8], const char(&from)[8][8])
-{
-	for (size_t i = 0; i < 8; i++)
-	{
-		for (size_t k = 0; k < 8; k++)
-		{
-			to[i][k] = from[i][k];
-		}
 	}
 }

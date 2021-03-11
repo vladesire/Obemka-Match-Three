@@ -1,12 +1,11 @@
 #include <SFML/Graphics.hpp>
+#include "WindowConstants.h"
+#include "ResLoader.h"
+#include "Gameplay.h"
+#include "MainMenu.h"
+#include "Splash.h"
 #include <thread>
 #include <locale>
-#include "Splash.h"
-#include "ResLoader.h"
-#include "MainMenu.h"
-#include "Gameplay.h"
-
-const int height = 640, width = 740;
 
 /*
 	Game ideas:
@@ -32,7 +31,6 @@ const int height = 640, width = 740;
 /*
 	Bugs:
 		
-		1. When you're trying to to swipe a tile out of game field.
 
 */
 
@@ -43,7 +41,7 @@ int main()
 
 	ResLoader resloader;
 	
-	sf::RenderWindow window {sf::VideoMode(width, height), "Обемка: три в ряд", sf::Style::Close};
+	sf::RenderWindow window {sf::VideoMode(WINDOW_W, WINDOW_H), "Обемка: три в ряд", sf::Style::Close};
 
 	std::thread t {&ResLoader::load, &resloader};
 	
