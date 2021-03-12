@@ -34,6 +34,10 @@ private:
 	sf::Sound sounds[5][5];
 	sf::Sprite gameover;
 
+	// Tiles codes: 
+	// -2:  Fall animation
+	// -1:  Disappear animation
+	// 0-4: Texture id (no animation) 
 	sf::Sprite tiles_sprites[8][8];
 	char tiles[8][8];
 
@@ -41,16 +45,14 @@ private:
 
 
 	void initialize();
+	void generate_tiles();
+	void regenerate_tiles();
+	void generate_sprites();
 
-	void generate_main(sf::Sprite(&main_spr)[8][8], const char(&tiles)[8][8], const sf::Texture &text);
+	bool analyze_tiles();
 
-	bool analyze_tiles(char(&tiles)[8][8]);
-
-	void regenerate_tiles(char(&tiles)[8][8]);
-
-	void generate_tiles(char(&tiles)[8][8]);
-
-	void tilearrpos(sf::Vector2i &selpos, const sf::Vector2i &coords);
+	// ID is position of physical tile in (logical) tile array
+	void tile_id(sf::Vector2i &id, const sf::Vector2i &mouse_pos);
 
 	// Set animation up
 	void init_swap(sf::Vector2i newpos, sf::Vector2i selpos);

@@ -26,6 +26,8 @@
 // H - height, 
 // PAD - padding, HPAD - height padding, WPAD - width padding
 
+// Margin and padding are used here interchangeably
+
 // Size is used when W == H
 
 const int WINDOW_H = 640, WINDOW_W = 740,

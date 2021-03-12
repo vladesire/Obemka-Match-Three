@@ -2,7 +2,31 @@
 #include "Gameplay.h"
 #include "ExitAsk.h"
 
-void init_lines(sf::VertexArray &lines);
+void init_lines(sf::VertexArray &lines)
+{
+	lines[0].position = sf::Vector2f(WINDOW_WPAD, WINDOW_HPAD);
+	lines[1].position = sf::Vector2f(WINDOW_W - WINDOW_WPAD, WINDOW_HPAD);
+
+	lines[2].position = sf::Vector2f(WINDOW_WPAD, WINDOW_HPAD + HEADER_H);
+	lines[3].position = sf::Vector2f(WINDOW_W - WINDOW_WPAD, WINDOW_HPAD + HEADER_H);
+
+	lines[4].position = sf::Vector2f(WINDOW_WPAD, WINDOW_H - WINDOW_HPAD);
+	lines[5].position = sf::Vector2f(WINDOW_W - WINDOW_WPAD, WINDOW_H - WINDOW_HPAD);
+
+	lines[6].position = sf::Vector2f(WINDOW_WPAD, WINDOW_HPAD);
+	lines[7].position = sf::Vector2f(WINDOW_WPAD, WINDOW_H - WINDOW_HPAD);
+
+	lines[8].position = sf::Vector2f(WINDOW_W - WINDOW_WPAD, WINDOW_HPAD);
+	lines[9].position = sf::Vector2f(WINDOW_W - WINDOW_WPAD, WINDOW_H - WINDOW_HPAD);
+
+	lines[10].position = sf::Vector2f(WINDOW_WPAD + SIDE_W, WINDOW_HPAD + HEADER_H);
+	lines[11].position = sf::Vector2f(WINDOW_WPAD + SIDE_W, WINDOW_H - WINDOW_HPAD);
+
+	for (size_t i = 0; i < 12; ++i)
+	{
+		lines[i].color = sf::Color(194, 137, 137);
+	}
+}
 
 void TimeGame::initialize()
 {
@@ -11,20 +35,16 @@ void TimeGame::initialize()
 	auto music = resloader.get_music(); 
 	fonts = resloader.get_fonts();
 
-
 	tile_texture = textures;
 	defeat_texture = textures + 1;
 	victory_texture = textures + 2;
 
 	init_lines(lines);
+	generate_tiles();
+	generate_sprites();
 
 	gameover.setScale(.498f, .525f);
 	gameover.setPosition(WINDOW_WPAD + SIDE_W + GAME_PAD, WINDOW_HPAD + HEADER_H + GAME_PAD);
-
-
-	generate_tiles(tiles);
-
-	generate_main(tiles_sprites, tiles, *tile_texture);
 
 
 	/*Respectively: Header, Score, Time left, High Score, Gameover*/
@@ -98,33 +118,6 @@ void TimeGame::initialize()
 		{
 			sounds[i][k].setVolume(resloader.get_userdata()->get_sounds_volume());
 		}
-	}
-
-}
-void init_lines(sf::VertexArray &lines)
-{
-
-	lines[0].position = sf::Vector2f(WINDOW_WPAD, WINDOW_HPAD);
-	lines[1].position = sf::Vector2f(WINDOW_W - WINDOW_WPAD, WINDOW_HPAD);
-
-	lines[2].position = sf::Vector2f(WINDOW_WPAD, WINDOW_HPAD + HEADER_H);
-	lines[3].position = sf::Vector2f(WINDOW_W - WINDOW_WPAD, WINDOW_HPAD + HEADER_H);
-
-	lines[4].position = sf::Vector2f(WINDOW_WPAD, WINDOW_H - WINDOW_HPAD);
-	lines[5].position = sf::Vector2f(WINDOW_W - WINDOW_WPAD, WINDOW_H - WINDOW_HPAD);
-
-	lines[6].position = sf::Vector2f(WINDOW_WPAD, WINDOW_HPAD);
-	lines[7].position = sf::Vector2f(WINDOW_WPAD, WINDOW_H - WINDOW_HPAD);
-
-	lines[8].position = sf::Vector2f(WINDOW_W - WINDOW_WPAD, WINDOW_HPAD);
-	lines[9].position = sf::Vector2f(WINDOW_W - WINDOW_WPAD, WINDOW_H - WINDOW_HPAD);
-
-	lines[10].position = sf::Vector2f(WINDOW_WPAD + SIDE_W, WINDOW_HPAD + HEADER_H);
-	lines[11].position = sf::Vector2f(WINDOW_WPAD + SIDE_W, WINDOW_H - WINDOW_HPAD);
-
-	for (size_t i = 0; i < 12; ++i)
-	{
-		lines[i].color = sf::Color(194, 137, 137);
 	}
 
 }
@@ -250,9 +243,9 @@ int TimeGame::play()
 			{
 				if (selected)
 				{
-					tilearrpos(newpos, sf::Mouse::getPosition(window));
+					tile_id(newpos, sf::Mouse::getPosition(window));
 					
-					if (newpos.x < 0) // -1: space between tiles, -2: space outside game zone
+					if (newpos.x < 0)
 					{
 						selected = false;
 						continue;
@@ -275,7 +268,7 @@ int TimeGame::play()
 				}
 				else
 				{
-					tilearrpos(selpos, sf::Mouse::getPosition(window));
+					tile_id(selpos, sf::Mouse::getPosition(window));
 					selected = (selpos.x != -1);
 				}
 
@@ -308,7 +301,7 @@ int TimeGame::play()
 
 		if (selected && sf::Mouse::isButtonPressed(sf::Mouse::Left))
 		{
-			tilearrpos(newpos, sf::Mouse::getPosition(window));
+			tile_id(newpos, sf::Mouse::getPosition(window));
 
 			if (newpos.x == -2)
 			{
@@ -334,11 +327,11 @@ int TimeGame::play()
 				tiles[selpos.y][selpos.x] = tiles[newpos.y][newpos.x];
 				tiles[newpos.y][newpos.x] = temp;
 
-				generate_main(tiles_sprites, tiles, *tile_texture);
+				generate_sprites();
 
 				update_score = true;
 
-				if (analyze_tiles(tiles))
+				if (analyze_tiles())
 				{
 					swap_animation = 0;
 					disappear_animation = 1;
@@ -373,9 +366,9 @@ int TimeGame::play()
 			{
 				fall_animation = 0;
 
-				generate_main(tiles_sprites, tiles, *tile_texture);
+				generate_sprites();
 
-				if (analyze_tiles(tiles))
+				if (analyze_tiles())
 				{
 					disappear_animation = 1;
 					init_disappear();
@@ -394,26 +387,55 @@ int TimeGame::play()
 	return 1;
 }
 
+void TimeGame::generate_tiles()
+{
+	srand(time(NULL));
 
-void TimeGame::generate_main(sf::Sprite(&tiles_sprites)[8][8], const char(&tiles)[8][8], const sf::Texture &text)
+	for (size_t i = 0; i < 8; i++)
+	{
+		for (size_t k = 0; k < 8; k++)
+		{
+			tiles[i][k] = rand() % 5;
+		}
+	}
+
+	// Spawn no combinations in the beginning
+	while (analyze_tiles())
+	{
+		regenerate_tiles();
+	}
+
+}
+void TimeGame::regenerate_tiles()
+{
+	for (size_t i = 0; i < 8; i++)
+	{
+		for (size_t k = 0; k < 8; k++)
+		{
+			if (tiles[i][k] < 0)
+				tiles[i][k] = rand() % 5;
+		}
+	}
+}
+void TimeGame::generate_sprites()
 {
 	for (size_t i = 0; i < 8; ++i)
 	{
-		int origh = GAME_Y + i * (TILE_SIZE + TILE_PAD);
+		int offy = GAME_Y + i * (TILE_SIZE + TILE_PAD);
 
 		for (size_t k = 0; k < 8; ++k)
 		{
-			int origw = GAME_X + k * (TILE_SIZE + TILE_PAD);
+			int offx = GAME_X + k * (TILE_SIZE + TILE_PAD);
 
-			tiles_sprites[i][k].setPosition(origw+30, origh+30);
-			tiles_sprites[i][k].setTexture(text);
+			tiles_sprites[i][k].setPosition(offx+30, offy+30); // To compensate origin
+			tiles_sprites[i][k].setTexture(*tile_texture);
 			tiles_sprites[i][k].setTextureRect(sf::IntRect(tiles[i][k] * 60, 0, 60, 60));
 			tiles_sprites[i][k].setOrigin(30,30);
 		}
 	}
 }
 
-bool TimeGame::analyze_tiles(char(&tiles)[8][8])
+bool TimeGame::analyze_tiles()
 {
 	bool changed = false;
 	// horizontal analysis
@@ -556,65 +578,31 @@ bool TimeGame::analyze_tiles(char(&tiles)[8][8])
 	return changed;
 }
 
-void TimeGame::regenerate_tiles(char(&tiles)[8][8])
+void TimeGame::tile_id(sf::Vector2i &id, const sf::Vector2i &mouse_pos)
 {
-	for (size_t i = 0; i < 8; i++)
+	if (
+		mouse_pos.x < GAME_X ||
+		mouse_pos.x > GAME_X + GAME_SIZE - 2*GAME_PAD ||
+		mouse_pos.y < GAME_Y ||
+		mouse_pos.y > GAME_Y + GAME_SIZE - 2*GAME_PAD
+	   )
 	{
-		for (size_t k = 0; k < 8; k++)
-		{
-			if (tiles[i][k] == -2)
-				tiles[i][k] = rand() % 5;
-		}
+		id.x = -2; // Mouse position is out of game zone
+		id.y = -2;
 	}
-}
-
-void TimeGame::generate_tiles(char(&tiles)[8][8])
-{
-	srand(time(NULL));
-
-	for (size_t i = 0; i < 8; i++)
+	else if (
+	         (mouse_pos.x - GAME_X) % (TILE_SIZE + TILE_PAD) >= TILE_SIZE ||
+		     (mouse_pos.y - GAME_Y) % (TILE_SIZE + TILE_PAD) >= TILE_SIZE
+		    )
+			
 	{
-		for (size_t k = 0; k < 8; k++)
-		{
-			tiles[i][k] = rand() % 5;
-		}
-	}
-
-	while (analyze_tiles(tiles))
-	{
-		for (size_t i = 0; i < 8; i++)
-		{
-			for (size_t k = 0; k < 8; k++)
-			{
-				if (tiles[i][k] == -1)
-					tiles[i][k] = rand() % 5;
-			}
-		}
-	}
-
-}
-
-void TimeGame::tilearrpos(sf::Vector2i &selpos, const sf::Vector2i &coords)
-{
-	if (coords.x < GAME_X ||
-		coords.x >(WINDOW_W - WINDOW_WPAD - GAME_PAD) ||
-		coords.y < GAME_Y ||
-		coords.y >(WINDOW_H - WINDOW_HPAD - GAME_PAD))
-	{
-		selpos.x = -2;
-		selpos.y = -2;
-	}
-	else if (((coords.x - GAME_X) / 64.0 - (int)((coords.x - GAME_X) / 64.0) > 0.9375) ||
-		((coords.y - GAME_Y) / 64.0 - (int)((coords.y - GAME_Y) / 64.0) > 0.9375)
-		)
-	{
-		selpos.x = -1;
-		selpos.y = -1;
+		id.x = -1; // Mouse position is between tiles
+		id.y = -1;
 	}
 	else
 	{
-		selpos.x = (coords.x - GAME_X) / 64.0;
-		selpos.y = (coords.y - GAME_Y) / 64.0;
+		id.x = (mouse_pos.x - GAME_X) / (TILE_SIZE + TILE_PAD);
+		id.y = (mouse_pos.y - GAME_Y) / (TILE_SIZE + TILE_PAD);
 	}
 
 }
