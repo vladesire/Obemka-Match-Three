@@ -7,33 +7,6 @@
 #include <thread>
 #include <locale>
 
-/*
-	Game ideas:
-
-		1. One of the last levels: win with disabled cursor (obama took it from you...)
-
-		2. Create in-game cursor and click sounds
-
-		3. Settings
-			Sounds | Create variable to set them, pass to function,
-			Music  | change in settings (main_menu class)
-
-
-*/
-
-/*
-	Todo list:
-
-		1. sf::Event::MouseButtonPressed -> sf::Event::MouseButtonReleased
-		2. In every render cycle: first draw, then update! 
-*/
-
-/*
-	Bugs:
-		
-
-*/
-
 
 int main()
 {
@@ -50,15 +23,7 @@ int main()
 	
 	t.join();
 	
-
-
-	/*sf::Image img_cursor; // TODO cursor
-	img_cursor.loadFromFile("cursor.png");
-	sf::Cursor cursor;
-	cursor.loadFromPixels(img_cursor.getPixelsPtr(), sf::Vector2u(53, 87), sf::Vector2u(4, 3));
-	window.setMouseCursor(cursor);*/
-
-	window.setMouseCursorVisible(true); // Set in game curosor!
+	window.setMouseCursorVisible(true);
 
 	MainMenu main_menu {window, resloader};
 

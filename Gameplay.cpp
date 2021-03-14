@@ -134,10 +134,10 @@ int TimeGame::play()
 	bool update_score = true;
 
 	bool selected = false; // A tile is seleceted for movement
-	sf::Vector2i selpos; // selected tile's position in tiles_sprites array
-	sf::Vector2i newpos; // tile that's paired with selpos to swap
+	sf::Vector2i sel_pos, // Position of selected tile in tiles_sprites array
+	             new_pos; // Position of tile that will be swapped with sel_pos
 
-	bool exit_lock = true;
+	bool exit_locked = true;
 	int frames_left = FPS * 5.5; // wait for ending sound 
 
 	int swap_animation = 0; // to allow double-time animation
@@ -149,10 +149,10 @@ int TimeGame::play()
 
 
 	// It is used to hide "falling" tiles that are initially rendered outside the game zone.
-	sf::RectangleShape screen;
-	screen.setFillColor(sf::Color(96, 73, 82));
-	screen.setPosition(GAME_X, 0);
-	screen.setSize(sf::Vector2f(WINDOW_W - WINDOW_WPAD, GAME_Y));
+	sf::RectangleShape invisible_screen;
+	invisible_screen.setFillColor(sf::Color(96, 73, 82));
+	invisible_screen.setPosition(GAME_X, 0);
+	invisible_screen.setSize(sf::Vector2f(WINDOW_W - WINDOW_WPAD, GAME_Y));
 
 
 	soundtrack->play();
@@ -160,6 +160,7 @@ int TimeGame::play()
 	while (true)
 	{
 		start_time = std::chrono::system_clock::now();
+		bool has_animation = swap_animation || disappear_animation || fall_animation;
 
 		window.clear(sf::Color(96, 73, 82));
 
@@ -168,31 +169,31 @@ int TimeGame::play()
 			texts[1].setString("—чет\n" + std::to_string(score));
 			update_score = false;
 		}
-		if (seconds && frame_counter % 120 == 0)
+		if (seconds && frame_counter % FPS == 0)
 		{
 			texts[2].setString("ќсталось\n" + std::to_string(--seconds));
 		}
 
-		// Layer 3
 		for (size_t i = 0; i < 8; i++)
 		{
 			for (size_t k = 0; k < 8; k++)
 			{
-				if (!(swap_animation && selpos.x == k && selpos.y == i))
-					window.draw(tiles_sprites[i][k]);
+				window.draw(tiles_sprites[i][k]);
 			}
 		}
-
+		// Swapping tile should be drawn at the top (yes, it's drawn twice; overhead is minimal).
 		if (swap_animation)
 		{
-			window.draw(tiles_sprites[selpos.y][selpos.x]);
+			window.draw(tiles_sprites[sel_pos.y][sel_pos.x]);
 		}
 
-		// Layer: invisible screen
-		window.draw(screen);
+		if (fall_animation)
+		{
+			window.draw(invisible_screen);
+		}
 
-		// Layer 2 : Game over
-		if (!seconds && !(swap_animation || disappear_animation || fall_animation))
+		// Game over
+		if (!seconds && !has_animation)
 		{
 			if (gameover_once)
 			{
@@ -216,62 +217,58 @@ int TimeGame::play()
 
 			window.draw(gameover);
 
-
 			if (!--frames_left)
 			{
-				exit_lock = false;
-				window.draw(texts[4]); // "Press any key"
+				exit_locked = false;
+				window.draw(texts[4]);
 			}
-
 		}
 		
-		// Layer 1
-		for (size_t i = 0; i < 4; i++)
+		// text[4] = "Press any key"
+		for (size_t i = 0; i < 4 + !exit_locked; i++)
 		{
 			window.draw(texts[i]);
 		}
 		window.draw(lines);
 		
-		// Layer 0
+
 		window.display();
 
 
 		sf::Event event;
 		while (window.pollEvent(event))
 		{
-			if (!(swap_animation || disappear_animation || fall_animation) && seconds && event.type == sf::Event::MouseButtonPressed)
+			if (!has_animation && seconds && event.type == sf::Event::MouseButtonPressed)
 			{
 				if (selected)
 				{
-					tile_id(newpos, sf::Mouse::getPosition(window));
+					tile_id(new_pos, sf::Mouse::getPosition(window));
 					
-					if (newpos.x < 0)
+					if (new_pos.x < 0)
 					{
 						selected = false;
-						continue;
+						continue; // Event loop
 					}
 
-					auto diff = newpos - selpos;
+					auto diff = new_pos - sel_pos;
 
 					if (diff.x == 0 && abs(diff.y) == 1 || diff.y == 0 && abs(diff.x) == 1)
 					{
-						sounds[tiles[selpos.y][selpos.x]][rand() % 5].play();
+						sounds[tiles[sel_pos.y][sel_pos.x]][rand() % 5].play();
 						swap_animation = 2;
 						selected = false;
-						init_swap(newpos, selpos);
+						init_swap(new_pos, sel_pos);
 					}
 					else
 					{
-						selpos = newpos;
+						sel_pos = new_pos;
 					}
-
 				}
 				else
 				{
-					tile_id(selpos, sf::Mouse::getPosition(window));
-					selected = (selpos.x != -1);
+					tile_id(sel_pos, sf::Mouse::getPosition(window));
+					selected = (sel_pos.x != -1);
 				}
-
 			}
 			else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
 			{
@@ -286,56 +283,57 @@ int TimeGame::play()
 			else if (event.type == sf::Event::Closed)
 			{
 				if (exit_question(window, fonts))
+				{	
 					return 0;
+				}
 			}
-			else if (!exit_lock && (!seconds && !(swap_animation || disappear_animation || fall_animation)) && (event.type == sf::Event::MouseButtonReleased || event.type == sf::Event::KeyReleased))
+			else if (!exit_locked && !seconds && (event.type == sf::Event::MouseButtonReleased || event.type == sf::Event::KeyReleased))
 			{
 				soundtrack->stop();
 				victory->stop();
 				defeat->stop();
 				return 1;
-
-				// TODO: Refactor condition
 			}
 		}
 
+		// Handle swipes
 		if (selected && sf::Mouse::isButtonPressed(sf::Mouse::Left))
 		{
-			tile_id(newpos, sf::Mouse::getPosition(window));
+			tile_id(new_pos, sf::Mouse::getPosition(window));
 
-			if (newpos.x == -2)
+			if (new_pos.x == -2)
 			{
 				selected = false;
 			}
 
-			auto diff = newpos - selpos;
+			auto diff = new_pos - sel_pos;
 
 			if (diff.x == 0 && abs(diff.y) == 1 || diff.y == 0 && abs(diff.x) == 1)
 			{
-				sounds[tiles[selpos.y][selpos.x]][rand() % 5].play();
+				sounds[tiles[sel_pos.y][sel_pos.x]][rand() % 5].play();
 				swap_animation = 2;
 				selected = false;
-				init_swap(newpos, selpos);
+				init_swap(new_pos, sel_pos);
 			}
 		}
 
+		// Animation handling
 		if (swap_animation)
 		{
 			if (!animation.apply())
 			{
-				auto temp = tiles[selpos.y][selpos.x];
-				tiles[selpos.y][selpos.x] = tiles[newpos.y][newpos.x];
-				tiles[newpos.y][newpos.x] = temp;
-
-				generate_sprites();
+				auto temp = tiles[sel_pos.y][sel_pos.x];
+				tiles[sel_pos.y][sel_pos.x] = tiles[new_pos.y][new_pos.x];
+				tiles[new_pos.y][new_pos.x] = temp;
 
 				update_score = true;
 
-				if (analyze_tiles())
+				generate_sprites();
+
+				if (check_combinations()) // TODO: analyze_tiles
 				{
 					swap_animation = 0;
 					disappear_animation = 1;
-
 					init_disappear();
 				}
 				else
@@ -346,9 +344,7 @@ int TimeGame::play()
 					}
 					--swap_animation;
 				}
-
 			}
-		
 		}
 		else if (disappear_animation)
 		{
@@ -368,7 +364,7 @@ int TimeGame::play()
 
 				generate_sprites();
 
-				if (analyze_tiles())
+				if (check_combinations())
 				{
 					disappear_animation = 1;
 					init_disappear();
@@ -400,7 +396,7 @@ void TimeGame::generate_tiles()
 	}
 
 	// Spawn no combinations in the beginning
-	while (analyze_tiles())
+	while (check_combinations())
 	{
 		regenerate_tiles();
 	}
@@ -435,166 +431,178 @@ void TimeGame::generate_sprites()
 	}
 }
 
-bool TimeGame::analyze_tiles()
+bool TimeGame::check_combinations()
 {
-	bool changed = false;
-	// horizontal analysis
+	bool result = false;
 
-	//        |        |        midpoints
-	// [0][1][2][3][4][5][6][7]
-	// [0][1][2][3][4][5][6][7]
+	// Horizontal analysis
 
-	for (size_t i = 0; i < 8; i++)
+	for (size_t row = 0; row < 8; ++row)
 	{
-		char col = tiles[i][2];
-		int left = 0, right = 0;
+		char tile = tiles[row][0];
+		int len = 1; // one tile is always of its own color
 
-		for (int k = 1; k >= 0; --k)
+		// col max is 7, but situation when combination is situated at the end of the row should be handled as well
+		for (size_t col = 1; col < 9; ++col)
 		{
-			if (tiles[i][k] == col)
-				++left;
+			if (col < 8 && tile == tiles[row][col])
+			{
+				++len;
+			}
 			else
-				break;
-		}
-
-		for (int k = 3; k <= 6; ++k)
-		{
-			if (tiles[i][k] == col)
-				++right;
-			else
-				break;
-		}
-
-		if (left + right + 1 >= 3)
-		{
-			changed = true;
-
-			for (int k = 2 - left; k <= 2 + right; k++)
 			{
-				tiles[i][k] = -1;
-			}
-		}
-
-		col = tiles[i][5];
-
-		if (col != -1)
-		{
-			left = right = 0;
-
-			for (int k = 4; k >= 1; --k)
-			{
-				if (tiles[i][k] == col)
-					++left;
-				else
-					break;
-			}
-
-			for (int k = 6; k <= 7; ++k)
-			{
-				if (tiles[i][k] == col)
-					++right;
-				else
-					break;
-			}
-
-			if (left + right + 1 >= 3)
-			{
-				changed = true;
-
-				for (int k = 5 - left; k <= 5 + right; k++)
+				// Check T (and reversed T)
+				bool is_T = false;
+				if (len >= 3)
 				{
-					tiles[i][k] = -1;
+					// Go through midpoints of all 3-tile lines 
+					for (size_t i = col - len + 1; i < col - 1; ++i)
+					{
+						// T down
+						if (row < 6 && tiles[row + 1][i] == tile && tiles[row + 2][i] == tile)
+						{
+							tiles[row + 1][i] = -1;
+							tiles[row + 2][i] = -1;
+
+							result = is_T = true;
+						}
+
+						// T up
+						if (row > 1 && tiles[row - 1][i] == tile && tiles[row - 2][i] == tile)
+						{
+							tiles[row - 1][i] = -1;
+							tiles[row - 2][i] = -1;
+
+							result = is_T = true;
+						}
+
+						if (is_T)
+						{
+							tiles[row][i-1] = -1;
+							tiles[row][i]   = -1;
+							tiles[row][i+1] = -1;
+
+							break;
+						}
+
+					}
+
+					// T right
+					for (size_t i = col - len; i < col - 2; ++i)
+					{
+						if (row > 0 && row < 7 && tiles[row - 1][i] == tile && tiles[row + 1][i] == tile)
+						{
+							tiles[row][i+2] = -1;
+							tiles[row][i+1] = -1;
+							tiles[row][i]   = -1;
+							tiles[row+1][i] = -1;
+							tiles[row-1][i] = -1;
+							
+							result = is_T = true;
+							break;
+						}
+					}
+
+					// T left
+					for (size_t i = col - len + 2; i < col; ++i)
+					{
+						if (row > 0 && row < 7 && tiles[row - 1][i] == tile && tiles[row + 1][i] == tile)
+						{
+							tiles[row][i-2] = -1;
+							tiles[row][i-1] = -1;
+							tiles[row][i]   = -1;
+							tiles[row+1][i] = -1;
+							tiles[row-1][i] = -1;
+
+							result = is_T = true;
+							break;
+						}
+					}
+
 				}
+
+				// Check cube (up and down)
+				bool is_square = false;
+				if (!is_T && len >= 2)
+				{
+					// Go through biginnings of all 2-tile lines
+					for (size_t i = col - len; i < col - 1; ++i)
+					{
+						// Square
+						if (row < 7 && tiles[row + 1][i] == tile && tiles[row + 1][i + 1] == tile)
+						{
+							tiles[row + 1][i + 1] = -1;
+							tiles[row + 1][i] = -1;
+							tiles[row][i + 1] = -1;
+							tiles[row][i] = -1;
+
+							result = is_square = true;
+							break;
+						}
+					}
+				}
+
+				// Plain line
+				if (!is_T && !is_square && len >= 3)
+				{
+					result = true;
+					for (size_t i = col - len; i < col; ++i)
+					{
+						tiles[row][i] = -1;
+					}
+				}
+
+				tile = tiles[row][col];
+				len = 1;
 			}
 		}
 
 	}
-
-	for (size_t i = 0; i < 8; i++)
+	
+	// Vertical analysis (no need to check T and square).
+	for (size_t col = 0; col < 8; ++col)
 	{
-		char col = tiles[2][i];
-		int left = 0, right = 0;
+		char tile = tiles[0][col];
+		int len = 1;
 
-		for (int k = 1; k >= 0; --k)
+		for (size_t row = 1; row < 9; ++row)
 		{
-			if (tiles[k][i] == col)
-				++left;
+			if (col < 8 && tile == tiles[row][col])
+			{
+				++len;
+			}
 			else
-				break;
-		}
-
-		for (int k = 3; k <= 6; ++k)
-		{
-			if (tiles[k][i] == col)
-				++right;
-			else
-				break;
-		}
-
-		if (left + right + 1 >= 3)
-		{
-			changed = true;
-
-			for (int k = 2 - left; k <= 2 + right; k++)
 			{
-				tiles[k][i] = -1;
-			}
-		}
-
-		col = tiles[5][i];
-
-		if (col != -1)
-		{
-			left = right = 0;
-
-			for (int k = 4; k >= 1; --k)
-			{
-				if (tiles[k][i] == col)
-					++left;
-				else
-					break;
-			}
-
-			for (int k = 6; k <= 7; ++k)
-			{
-				if (tiles[k][i] == col)
-					++right;
-				else
-					break;
-			}
-
-			if (left + right + 1 >= 3)
-			{
-				changed = true;
-
-				for (int k = 5 - left; k <= 5 + right; k++)
+				// Plain line
+				if (len >= 3)
 				{
-					tiles[k][i] = -1;
+					result = true;
+					for (size_t i = row - len; i < row; ++i)
+					{
+						tiles[i][col] = -1;
+					}
 				}
+
+				tile = tiles[row][col];
+				len = 1;
 			}
 		}
-
 	}
-	return changed;
+
+	return result;
 }
 
 void TimeGame::tile_id(sf::Vector2i &id, const sf::Vector2i &mouse_pos)
 {
-	if (
-		mouse_pos.x < GAME_X ||
-		mouse_pos.x > GAME_X + GAME_SIZE - 2*GAME_PAD ||
-		mouse_pos.y < GAME_Y ||
-		mouse_pos.y > GAME_Y + GAME_SIZE - 2*GAME_PAD
-	   )
+	if ( mouse_pos.x < GAME_X || mouse_pos.y < GAME_Y  ||
+		 mouse_pos.x > GAME_X + GAME_SIZE - 2*GAME_PAD ||
+		 mouse_pos.y > GAME_Y + GAME_SIZE - 2*GAME_PAD    )
 	{
 		id.x = -2; // Mouse position is out of game zone
 		id.y = -2;
 	}
-	else if (
-	         (mouse_pos.x - GAME_X) % (TILE_SIZE + TILE_PAD) >= TILE_SIZE ||
-		     (mouse_pos.y - GAME_Y) % (TILE_SIZE + TILE_PAD) >= TILE_SIZE
-		    )
-			
+	else if ( (mouse_pos.x - GAME_X) % (TILE_SIZE + TILE_PAD) >= TILE_SIZE ||
+		      (mouse_pos.y - GAME_Y) % (TILE_SIZE + TILE_PAD) >= TILE_SIZE    )
 	{
 		id.x = -1; // Mouse position is between tiles
 		id.y = -1;
@@ -604,15 +612,14 @@ void TimeGame::tile_id(sf::Vector2i &id, const sf::Vector2i &mouse_pos)
 		id.x = (mouse_pos.x - GAME_X) / (TILE_SIZE + TILE_PAD);
 		id.y = (mouse_pos.y - GAME_Y) / (TILE_SIZE + TILE_PAD);
 	}
-
 }
 
-void TimeGame::init_swap(sf::Vector2i newpos, sf::Vector2i selpos)
+void TimeGame::init_swap(sf::Vector2i new_pos, sf::Vector2i sel_pos)
 {
 	animation.clear();
 
-	auto diff = newpos - selpos;
 	AnimationDir dir;
+	auto diff = new_pos - sel_pos;
 
 	if (diff.x == -1)
 	{
@@ -633,13 +640,13 @@ void TimeGame::init_swap(sf::Vector2i newpos, sf::Vector2i selpos)
 
 	float scale_1 {1.01222893987}, scale_2 {0.987918800389};
 
-	animation.add(&tiles_sprites[selpos.y][selpos.x], AnimationType::Move, dir, 30, 2.13);
-	animation.add(&tiles_sprites[selpos.y][selpos.x], AnimationType::Scale, dir, 15, scale_1);
-	animation.add(&tiles_sprites[selpos.y][selpos.x], AnimationType::Scale, dir, 15, scale_2, 15);
+	animation.add(&tiles_sprites[sel_pos.y][sel_pos.x], AnimationType::Move, dir, 30, 2.13);
+	animation.add(&tiles_sprites[sel_pos.y][sel_pos.x], AnimationType::Scale, dir, 15, scale_1);
+	animation.add(&tiles_sprites[sel_pos.y][sel_pos.x], AnimationType::Scale, dir, 15, scale_2, 15);
 
-	animation.add(&tiles_sprites[newpos.y][newpos.x], AnimationType::Move, opposite_dir(dir), 30, 2.13);
-	animation.add(&tiles_sprites[newpos.y][newpos.x], AnimationType::Scale, dir, 15, scale_2);
-	animation.add(&tiles_sprites[newpos.y][newpos.x], AnimationType::Scale, dir, 15, scale_1, 15);
+	animation.add(&tiles_sprites[new_pos.y][new_pos.x], AnimationType::Move, opposite_dir(dir), 30, 2.13);
+	animation.add(&tiles_sprites[new_pos.y][new_pos.x], AnimationType::Scale, dir, 15, scale_2);
+	animation.add(&tiles_sprites[new_pos.y][new_pos.x], AnimationType::Scale, dir, 15, scale_1, 15);
 }
 void TimeGame::init_disappear()
 {
@@ -661,25 +668,18 @@ void TimeGame::init_fall()
 {
 	animation.clear();
 
-	int total; // number of -1 in column; used for iterations
-	int orig_total; // the same; used as constant
-
-	// TODO move tiles_temp declaration here
-	// TODO: think, do we actually need the second tiles array now? 
-	//copy_tiles(tiles_temp, tiles);
-
 	char temp_row[8]; // to keep new tiles before writing to main tiles array
 
 	for (int row = 0; row < 8; ++row) 
 	{
-		total = 0;
-		orig_total = 0;
+		int counter = 0; // counter of -1 in column
+		int total = 0;   // total number of -1 in column; used as constant
 
 		for (int col = 0; col < 8; ++col)
 		{
 			if (tiles[col][row] == -1)
 			{
-				++orig_total;
+				++total;
 			}
 		}
 	
@@ -687,33 +687,31 @@ void TimeGame::init_fall()
 		{
 			if (tiles[col][row] == -1)
 			{
-				++total;
+				++counter;
 			
 				char new_tile = rand() % 5;
 
+				// Restore "disappeared" tile
 				tiles_sprites[col][row].setScale(1, 1);
 				tiles_sprites[col][row].setTextureRect(sf::IntRect(new_tile * 60, 0, 60, 60));
-				tiles_sprites[col][row].setPosition(GAME_X + 64 * row + 30, GAME_Y - 64 * total + 30);
+				tiles_sprites[col][row].setPosition(GAME_X + 64 * row + 30, GAME_Y - 64 * counter + 30);
 
-				temp_row[total - 1] = new_tile;
+				temp_row[counter - 1] = new_tile;
 
-				animation.add(&tiles_sprites[col][row], AnimationType::Move, AnimationDir::Down, orig_total * 20, 3.2);
-
+				animation.add(&tiles_sprites[col][row], AnimationType::Move, AnimationDir::Down, total * 20, 3.2);
 			}
-			else
+			else if (counter)
 			{
-				if (total)
-				{
-					animation.add(&tiles_sprites[col][row], AnimationType::Move, AnimationDir::Down, total*20, 3.2);
-					tiles[col + total][row] = tiles[col][row];
-				}
+				// Need to move every tile down if it's over "disappeared" tile
+				animation.add(&tiles_sprites[col][row], AnimationType::Move, AnimationDir::Down, counter * 20, 3.2);
+				tiles[col + counter][row] = tiles[col][row];
 			}
 		}
 
-		for (size_t i = 0; i < total; i++)
+		for (size_t i = 0; i < counter; i++)
 		{
-			tiles[i][row] = temp_row[total - i - 1];
+			// Copy restored tiles at the top (in reversed order)
+			tiles[i][row] = temp_row[counter - i - 1];
 		}
-
 	}
 }

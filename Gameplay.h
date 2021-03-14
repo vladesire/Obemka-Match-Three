@@ -49,7 +49,7 @@ private:
 	void regenerate_tiles();
 	void generate_sprites();
 
-	bool analyze_tiles();
+	bool check_combinations();
 
 	// ID is position of physical tile in (logical) tile array
 	void tile_id(sf::Vector2i &id, const sf::Vector2i &mouse_pos);

@@ -5,8 +5,6 @@
 #include <SFML/Graphics.hpp>
 #include <fstream>
 
-#include <iostream>
-
 class ResLoader
 {
 public:
