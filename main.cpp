@@ -19,7 +19,7 @@ int main()
 	std::thread t {&ResLoader::load, &resloader};
 	
 	window.setMouseCursorVisible(false);
-	splash(window); // FIX SPLASH!
+	splash(window); 
 	
 	t.join();
 	

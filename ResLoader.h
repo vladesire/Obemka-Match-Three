@@ -4,6 +4,33 @@
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
 #include <fstream>
+#include <string>
+#include <vector>
+
+/*
+	Resources order
+
+	Music:
+		Main menu (1)
+		Game soundtrack (var)
+		Victory music (var)
+		Defeat music (var)
+
+	Sounds:
+		Tile_1 (var)
+		Tile_2 (var)
+		Tile_3 (var)
+		Tile_4 (var)
+		Tile_5 (var)
+
+	Textures:
+		tiles (1)
+		victory (var)
+		defeat (var)
+
+*/
+
+
 
 class ResLoader
 {
@@ -74,7 +101,101 @@ public:
 		int music_volume;
 	};
 
+private:
+	struct CfgParser
+	{
+		void parse()
+		{
+			std::ifstream fin;
+
+			fin.open("resources.cfg");
+
+			if (!fin.is_open())
+			{
+				// Well, just no music, sounds and texures
+			}
+
+			std::string templine;
+
+			std::getline(fin, templine);
+			get_paths(tiles_texture, templine);
+
+			std::getline(fin, templine);
+			get_paths(victory_textures, templine);
+
+			std::getline(fin, templine);
+			get_paths(defeat_textures, templine);
+
+			std::getline(fin, templine);
+			get_paths(music_menu, templine);
+
+			std::getline(fin, templine);
+			get_paths(music_game, templine);
+
+			std::getline(fin, templine);
+			get_paths(music_victory, templine);
+
+			std::getline(fin, templine);
+			get_paths(music_defeat, templine);
+
+			for (size_t i = 0; i < 5; i++)
+			{
+				std::getline(fin, templine);
+				get_paths(snd_tile[i], templine);
+			}
+
+			fin.close();
+		}
+
+		std::string tiles_texture;
+		std::string music_menu;
+		std::vector<std::string> victory_textures;
+		std::vector<std::string> defeat_textures;
+		std::vector<std::string> music_game;
+		std::vector<std::string> music_victory;
+		std::vector<std::string> music_defeat;
+		std::vector<std::string> snd_tile[5];
+
+	private:
+		void get_paths(std::vector<std::string> &ready, std::string &from)
+		{
+			int beg = 0, end = 0;
+
+			while (true)
+			{
+				beg = from.find_first_of('\"', end + 1);
+
+				if (beg == std::string::npos)
+				{
+					return;
+				}
+
+				end = from.find_first_of('\"', beg + 1);
+
+				ready.push_back(from.substr(beg + 1, end - beg - 1)); // Quotes should be omitted
+			}
+		}
+		void get_paths(std::string &ready, std::string &from)
+		{
+			int beg = 0, end = 0;
+
+			beg = from.find_first_of('\"', end);
+
+			if (beg == std::string::npos)
+			{
+				return;
+			}
+
+			end = from.find_first_of('\"', beg + 1);
+
+			ready = from.substr(beg + 1, end - beg - 1); // Quotes should be omitted
+		}
+
+	};
+
 public:
+	struct CfgParser *config;
+
 	void load()
 	{
 		if (!loaded)
@@ -85,50 +206,72 @@ public:
 			fonts[1].loadFromFile("Fonts/RobotoBold.ttf");
 
 
-			music = new sf::Music[9];
+			config = new CfgParser;
+			config->parse();
+
+			int size = config->music_defeat.size() + config->music_game.size() + config->music_victory.size() + 1;
+			music = new sf::Music[size];
 			
-			music[0].openFromFile("Sounds/main_menu.wav");
-			music[1].openFromFile("Sounds/soundtrack.wav");
-			music[2].openFromFile("Sounds/trololo.wav");
-			music[3].openFromFile("Sounds/bober.wav");
-			music[4].openFromFile("Sounds/prikol.wav");
-			music[5].openFromFile("Sounds/chetko.wav");
-			music[6].openFromFile("Sounds/kizhak.wav");
-			music[7].openFromFile("Sounds/potterflute.wav");
-			music[8].openFromFile("Sounds/piratesflute.wav");
-
+			music[0].openFromFile(config->music_menu);
 			music[0].setLoop(true);
-			music[1].setLoop(true);
-			music[2].setLoop(true);
 
+			int off = 1;
+			for (size_t i = 0, j = i + off; i < config->music_game.size(); ++i, ++j)
+			{
+				music[j].openFromFile(config->music_game[i]);
+				music[j].setLoop(true);
+			}
 
-			soundbuffers = new sf::SoundBuffer[13];
+			off += config->music_game.size();
+			for (size_t i = 0, j = i + off; i < config->music_victory.size(); ++i, ++j)
+			{
+				music[j].openFromFile(config->music_victory[i]);
+			}
 
-			soundbuffers[0].loadFromFile("Sounds/obeme_1.wav");
-			soundbuffers[1].loadFromFile("Sounds/obeme_2.wav");
-			soundbuffers[2].loadFromFile("Sounds/obeme_3.wav");
-			soundbuffers[3].loadFromFile("Sounds/obeme_4.wav");
-			soundbuffers[4].loadFromFile("Sounds/obeme_5.wav");
-			soundbuffers[5].loadFromFile("Sounds/gorin_1.wav");
-			soundbuffers[6].loadFromFile("Sounds/povar_1.wav");
-			soundbuffers[7].loadFromFile("Sounds/pocik_1.wav");
-			soundbuffers[8].loadFromFile("Sounds/sasxri_1.wav");
-			soundbuffers[9].loadFromFile("Sounds/sasxri_2.wav");
-			soundbuffers[10].loadFromFile("Sounds/sasxri_3.wav");
-			soundbuffers[11].loadFromFile("Sounds/sasxri_4.wav");
-			soundbuffers[12].loadFromFile("Sounds/sasxri_5.wav");
+			off += config->music_victory.size();
+			for (size_t i = 0, j = i + off; i < config->music_defeat.size(); ++i, ++j)
+			{
+				music[j].openFromFile(config->music_defeat[i]);
+			}
 
+			size = 0;
+			for (size_t i = 0; i < 5; i++)
+			{
+				size += config->snd_tile[i].size();
+			}
+			
+			soundbuffers = new sf::SoundBuffer[size];
 
-			textures = new sf::Texture[3];
+			off = 0;
+			for (size_t i = 0; i < 5; i++)
+			{
+				for (size_t k = 0, x = k + off; k < config->snd_tile[i].size(); ++k, ++x)
+				{
+					soundbuffers[x].loadFromFile(config->snd_tile[i][k]);
+				}
+				
+				off += config->snd_tile[i].size();
+			}
 
-			textures[0].loadFromFile("Textures/tiles.png");
-			textures[1].loadFromFile("Textures/gameover.jpg");
-			textures[2].loadFromFile("Textures/chetko.jpg");
+			size = config->defeat_textures.size() + config->victory_textures.size() + 1;
+			textures = new sf::Texture[size];
+
+			textures[0].loadFromFile(config->tiles_texture);
+
+			off = 1;
+			for (size_t i = 0, j = i + off; i < config->victory_textures.size(); ++i, ++j)
+			{
+				textures[j].loadFromFile(config->victory_textures[i]);
+			}
+
+			off += config->victory_textures.size();
+			for (size_t i = 0, j = i + off; i < config->defeat_textures.size(); ++i, ++j)
+			{
+				textures[j].loadFromFile(config->defeat_textures[i]);
+			}
 
 			userdata = new UserData;
-
 			read_userdata();
-
 		}
 	}
 
@@ -164,7 +307,7 @@ public:
 		}
 
 		int data;
-
+		
 		fin >> data;
 		userdata->set_high_score(data);
 
@@ -208,6 +351,7 @@ public:
 		delete[] soundbuffers;
 		delete[] textures;
 		delete userdata;
+		delete config;
 	}
 
 private:
@@ -218,7 +362,6 @@ private:
 	bool loaded = false;
 
 	UserData *userdata;
-
 };
 
 

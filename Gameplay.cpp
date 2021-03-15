@@ -80,46 +80,46 @@ void TimeGame::initialize()
 
 	srand(time(NULL));
 
-	soundtrack = music + 1 + rand() % 2;
-	soundtrack->setLoop(true);
+	// TODO: SOUNDS
+
+	int musoff = 1;
+
+	soundtrack = music + musoff + (rand() % resloader.config->music_game.size());
 	soundtrack->setVolume(resloader.get_userdata()->get_music_volume());
 	
-	victory = music + 3 + rand() % 3;
-	defeat = music + 6 + rand() % 3;
+	musoff += resloader.config->music_game.size();
+	victory = music + musoff + (rand() % resloader.config->music_victory.size());
+
+	musoff += resloader.config->music_victory.size();
+	defeat = music + musoff + (rand() % resloader.config->music_defeat.size());
 
 	victory->setVolume(resloader.get_userdata()->get_sounds_volume()); // It is loaded as music, but treated as sound
 	defeat->setVolume(resloader.get_userdata()->get_sounds_volume());
 
+	// TODO: SOUNDS
 	// TODO: fix when everyone will have 5 sounds!
-	for (size_t k = 0; k < 5; k++)
-	{
-		sounds[0][k].setBuffer(soundbuffers[k]);
-	}
-	for (size_t k = 0; k < 5; k++)
-	{
-		sounds[1][k].setBuffer(soundbuffers[5]);
-	}
-	for (size_t k = 0; k < 5; k++)
-	{
-		sounds[2][k].setBuffer(soundbuffers[6]);
-	}
-	for (size_t k = 0; k < 5; k++)
-	{
-		sounds[3][k].setBuffer(soundbuffers[7]);
-	}
-	for (size_t k = 0; k < 5; k++)
-	{
-		sounds[4][k].setBuffer(soundbuffers[8 + k]);
-	}
 
-	for (size_t i = 0; i < 5; i++)
+	int size = 0;
+	for (size_t i = 0; i < 5; ++i)
 	{
-		for (size_t k = 0; k < 5; k++)
+		if (i == 0)
 		{
-			sounds[i][k].setVolume(resloader.get_userdata()->get_sounds_volume());
+			sound_offs[i] = 0;
 		}
-	}
+		else
+		{
+			sound_offs[i] = sound_offs[i-1] + resloader.config->snd_tile[i-1].size();
+		}
 
+		size += resloader.config->snd_tile[i].size();
+	}
+	sounds = new sf::Sound[size];
+
+	for (size_t i = 0; i < size; ++i)
+	{
+		sounds[i].setBuffer(soundbuffers[i]);
+		sounds[i].setVolume(resloader.get_userdata()->get_sounds_volume());
+	}
 }
 
 int TimeGame::play()
@@ -254,7 +254,7 @@ int TimeGame::play()
 
 					if (diff.x == 0 && abs(diff.y) == 1 || diff.y == 0 && abs(diff.x) == 1)
 					{
-						sounds[tiles[sel_pos.y][sel_pos.x]][rand() % 5].play();
+						sounds[sound_offs[tiles[sel_pos.y][sel_pos.x]] + (rand() % resloader.config->snd_tile[tiles[sel_pos.y][sel_pos.x]].size())].play();
 						swap_animation = 2;
 						selected = false;
 						init_swap(new_pos, sel_pos);
@@ -310,7 +310,7 @@ int TimeGame::play()
 
 			if (diff.x == 0 && abs(diff.y) == 1 || diff.y == 0 && abs(diff.x) == 1)
 			{
-				sounds[tiles[sel_pos.y][sel_pos.x]][rand() % 5].play();
+				sounds[sound_offs[tiles[sel_pos.y][sel_pos.x]] + (rand() % resloader.config->snd_tile[tiles[sel_pos.y][sel_pos.x]].size())].play();
 				swap_animation = 2;
 				selected = false;
 				init_swap(new_pos, sel_pos);
@@ -330,7 +330,7 @@ int TimeGame::play()
 
 				generate_sprites();
 
-				if (check_combinations()) // TODO: analyze_tiles
+				if (check_combinations())
 				{
 					swap_animation = 0;
 					disappear_animation = 1;

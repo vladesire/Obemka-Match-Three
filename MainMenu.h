@@ -24,8 +24,6 @@ private:
 	ResLoader::UserData *userdata;
 	const sf::Font *fonts;
 	sf::Music *soundtrack;
-
-	bool first_time = true; // to handle music offset
 };
 
 #endif // !MAIN_MENU_H_

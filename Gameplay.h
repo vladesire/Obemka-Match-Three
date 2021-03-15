@@ -20,6 +20,11 @@ public:
 
 	int play();
 
+	~TimeGame()
+	{
+		delete[] sounds;
+	}
+
 private:
 	sf::RenderWindow &window;
 	ResLoader &resloader;
@@ -31,7 +36,10 @@ private:
 	sf::Text texts[5]; /* Header, Score, Time left, High Score, Gameover */
 	sf::Music *soundtrack, *victory, *defeat;
 	sf::VertexArray lines {sf::Lines, 12};
-	sf::Sound sounds[5][5];
+
+	int sound_offs[5];
+	sf::Sound *sounds;
+
 	sf::Sprite gameover;
 
 	// Tiles codes: 

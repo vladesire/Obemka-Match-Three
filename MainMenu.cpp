@@ -43,15 +43,6 @@ int MainMenu::run()
 
 	int hovered_id = -1;
 
-	if (first_time)
-	{
-		first_time = false;
-	}
-	else
-	{
-		soundtrack->setPlayingOffset(sf::milliseconds(16500));
-	}
-
 	soundtrack->setVolume(userdata->get_music_volume());
 	soundtrack->play();
 
@@ -130,7 +121,7 @@ int MainMenu::run()
 void MainMenu::settings()
 {
 	sf::Sound sound; // To feel difference when changing settings
-	sound.setBuffer(resloader.get_soundbuffers()[3]);
+	sound.setBuffer(resloader.get_soundbuffers()[0]);
 
 	std::array<sf::IntRect, 7> buttons;
 
