@@ -1,8 +1,8 @@
 #ifndef ANIMATION_H
 #define ANIMATION_H
 
-#include <vector>
 #include <SFML/Graphics/Sprite.hpp>
+#include <vector>
 
 enum class AnimationDir
 {
@@ -10,39 +10,45 @@ enum class AnimationDir
 
 };
 
-AnimationDir opposite_dir(const AnimationDir &dir);
-
-
 enum class AnimationType
 {
 	Move, 
-	Disappear
+	Scale
 };
+
+AnimationDir opposite_dir(const AnimationDir &dir);
 
 class Animation
 {
 public:
+	void add(sf::Sprite *sprite, AnimationType type, AnimationDir dir, int frames, float delta_per_frame, int delay = 0);
 	bool apply();
-	void add(sf::Sprite *sprite);
 	void clear();
-	void set_animation(AnimationType type, AnimationDir dir, int frames, float delta_per_frame);
-
-	const AnimationDir &get_dir()
-	{
-		return dir;
-	}
+	void repeat();
 
 private:
-	int frames = 0;
-	float delta = 0;
+	int frame_counter = 0;
 
-	sf::Vector2f off; // for Move
-	float opacity; // for Disappear
-	int init_frames; // frames from the beginning
+	struct AnimObj
+	{
+		AnimObj(sf::Sprite *sprite_, AnimationType type_, int frames_, int delay_) :
+			sprite{sprite_}, type{type_}, frames{frames_}, delay{delay_}
+		{}
 
-	AnimationType type;
-	AnimationDir dir;
-	std::vector<sf::Sprite*> objects;
+		sf::Sprite *sprite;
+		AnimationType type;
+		const int frames;
+		const int delay;
+
+		union
+		{
+			sf::Vector2f off; // for Move
+			float scale; // for Disappear
+		};
+
+	};
+
+	std::vector<AnimObj> objects;
 };
 
 #endif // !ANIMATION_H
