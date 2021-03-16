@@ -11,6 +11,7 @@
 int main()
 {
 	std::locale::global(std::locale("rus"));
+	srand(time(nullptr));
 
 	ResLoader resloader;
 	

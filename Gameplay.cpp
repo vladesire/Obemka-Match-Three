@@ -36,8 +36,8 @@ void TimeGame::initialize()
 	fonts = resloader.get_fonts();
 
 	tile_texture = textures;
-	defeat_texture = textures + 1;
-	victory_texture = textures + 2;
+	victory_texture = textures + 1 + (rand() % resloader.config->victory_textures.size());
+	defeat_texture = textures + 1 + resloader.config->victory_textures.size() + (rand() % resloader.config->defeat_textures.size());
 
 	init_lines(lines);
 	generate_tiles();
