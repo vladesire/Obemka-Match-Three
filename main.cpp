@@ -19,6 +19,10 @@ int main()
 
 	std::thread t {&ResLoader::load, &resloader};
 	
+	sf::Image icon;
+	icon.loadFromFile("obeme.png");
+
+	window.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
 	window.setMouseCursorVisible(false);
 	splash(window); 
 	
