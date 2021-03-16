@@ -32,7 +32,7 @@ int MainMenu::run()
 	{
 		texts[i].setFont(fonts[0]);
 		texts[i].setCharacterSize(40);
-		texts[i].setFillColor(sf::Color(80, 80, 80));
+		texts[i].setFillColor(sf::Color(172, 172, 172));
 		texts[i].setPosition(txtposx, txtposy + txtygap * i);
 	
 		buttons[i] = sf::IntRect(texts[i].getGlobalBounds()); // Strings should be set already!
@@ -50,7 +50,7 @@ int MainMenu::run()
 	{
 		start_time = std::chrono::system_clock::now();
 
-		window.clear();
+		window.clear(sf::Color(25, 25, 25));
 
 		for (size_t i = 0; i < 3; i++)
 		{
@@ -103,11 +103,11 @@ int MainMenu::run()
 		if (but_id != -1 && hovered_id == -1)
 		{
 			hovered_id = but_id;
-			texts[but_id].setFillColor(sf::Color(120, 120, 120));
+			texts[but_id].setFillColor(sf::Color(235, 230, 230));
 		}
 		else if (but_id == -1 && hovered_id != -1)
 		{
-			texts[hovered_id].setFillColor(sf::Color(80, 80, 80));
+			texts[hovered_id].setFillColor(sf::Color(172, 172, 172));
 			hovered_id = -1;
 		}
 
@@ -156,7 +156,7 @@ void MainMenu::settings()
 
 	for (size_t i = 0; i < 8; ++i)
 	{
-		texts[i].setFillColor(sf::Color(80, 80, 80));
+		texts[i].setFillColor(sf::Color(172, 172, 172));
 		texts[i].setFont(fonts[0]); // Regular
 		texts[i].move(5, -10); // Fix library's bug
 	}
@@ -172,8 +172,8 @@ void MainMenu::settings()
 
 	sf::RectangleShape rect1, rect2;
 
-	rect1.setFillColor(sf::Color(40, 40, 40));
-	rect2.setFillColor(sf::Color(40, 40, 40));
+	rect1.setFillColor(sf::Color(211, 211, 211));
+	rect2.setFillColor(sf::Color(211, 211, 211));
 
 	rect1.setPosition(240, 70);
 	rect2.setPosition(240, 110);
@@ -195,7 +195,7 @@ void MainMenu::settings()
 
 	while (true)
 	{
-		window.clear();
+		window.clear(sf::Color(25, 25, 25));
 
 		for (size_t i = 0; i < 8; ++i)
 		{
@@ -298,7 +298,6 @@ void MainMenu::settings()
 					rect1.setSize(sf::Vector2f(2 * userdata->get_sounds_volume(), 20));
 					rect2.setSize(sf::Vector2f(2 * userdata->get_music_volume(), 20));
 				}
-
 			}
 		}
 	}

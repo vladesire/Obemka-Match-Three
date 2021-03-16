@@ -41,5 +41,4 @@ const int GAME_X = WINDOW_WPAD + SIDE_W + GAME_PAD, // Origin of game zone relat
           GAME_Y = WINDOW_HPAD + HEADER_H + GAME_PAD;
 
 
-
 #endif // WINDOWCONSTANTS_H_

@@ -1,16 +1,15 @@
-#include "Splash.h"
 #include <SFML/Graphics.hpp>
+#include "WindowConstants.h"
+#include "Splash.h"
 #include <thread>
 #include <chrono>
-
 
 void splash(sf::RenderWindow &window)
 {
 	window.setMouseCursorVisible(false);
 
-
 	sf::Font font;
-	font.loadFromFile("Fonts/RobotoRegular.ttf");
+	font.loadFromFile("Fonts/BRUSHSCI.TTF");
 
 	sf::Text text, powered;
 
@@ -23,16 +22,16 @@ void splash(sf::RenderWindow &window)
 	text.setString("Vladesire Games");
 	powered.setString("Powered by SFML");
 
-	text.setPosition(200, window.getSize().y / 2);
-	powered.setPosition(500, window.getSize().y / 2 + 200);
-
-	text.setCharacterSize(50);
-	powered.setCharacterSize(25);
+	text.setCharacterSize(80);
+	powered.setCharacterSize(30);
+	
+	text.setPosition(WINDOW_W/2 - text.getGlobalBounds().width/2, WINDOW_H/ 2 - text.getGlobalBounds().height / 2 - 50);
+	powered.setPosition(500, WINDOW_H / 2 + 200);
 
 	window.clear();
 	window.draw(text);
 	window.draw(powered);
 	window.display();
 	
-	std::this_thread::sleep_for(std::chrono::seconds(3));
+	std::this_thread::sleep_for(std::chrono::seconds(5)); 
 }

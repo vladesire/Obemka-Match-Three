@@ -54,10 +54,10 @@ void TimeGame::initialize()
 	texts[3].setFont(fonts[0]);
 	texts[4].setFont(fonts[1]);
 
-	texts[0].setFillColor(sf::Color(169, 156, 173));
-	texts[1].setFillColor(sf::Color(169, 156, 173));
-	texts[2].setFillColor(sf::Color(169, 156, 173));
-	texts[3].setFillColor(sf::Color(169, 156, 173));
+	texts[0].setFillColor(sf::Color(192, 192, 192));
+	texts[1].setFillColor(sf::Color(192, 192, 192));
+	texts[2].setFillColor(sf::Color(192, 192, 192));
+	texts[3].setFillColor(sf::Color(192, 192, 192));
 	texts[4].setFillColor(sf::Color::Red);
 
 	texts[0].setCharacterSize(40);
@@ -80,8 +80,6 @@ void TimeGame::initialize()
 
 	srand(time(NULL));
 
-	// TODO: SOUNDS
-
 	int musoff = 1;
 
 	soundtrack = music + musoff + (rand() % resloader.config->music_game.size());
@@ -95,9 +93,6 @@ void TimeGame::initialize()
 
 	victory->setVolume(resloader.get_userdata()->get_sounds_volume()); // It is loaded as music, but treated as sound
 	defeat->setVolume(resloader.get_userdata()->get_sounds_volume());
-
-	// TODO: SOUNDS
-	// TODO: fix when everyone will have 5 sounds!
 
 	int size = 0;
 	for (size_t i = 0; i < 5; ++i)
@@ -150,9 +145,9 @@ int TimeGame::play()
 
 	// It is used to hide "falling" tiles that are initially rendered outside the game zone.
 	sf::RectangleShape invisible_screen;
-	invisible_screen.setFillColor(sf::Color(96, 73, 82));
+	invisible_screen.setFillColor(sf::Color(112, 77, 55));
 	invisible_screen.setPosition(GAME_X, 0);
-	invisible_screen.setSize(sf::Vector2f(WINDOW_W - WINDOW_WPAD, GAME_Y));
+	invisible_screen.setSize(sf::Vector2f(GAME_SIZE, GAME_Y));
 
 
 	soundtrack->play();
@@ -162,7 +157,7 @@ int TimeGame::play()
 		start_time = std::chrono::system_clock::now();
 		bool has_animation = swap_animation || disappear_animation || fall_animation;
 
-		window.clear(sf::Color(96, 73, 82));
+		window.clear(sf::Color(112, 77, 55));
 
 		if (update_score)
 		{
@@ -567,7 +562,7 @@ bool TimeGame::check_combinations()
 
 		for (size_t row = 1; row < 9; ++row)
 		{
-			if (col < 8 && tile == tiles[row][col])
+			if (row < 8 && tile == tiles[row][col])
 			{
 				++len;
 			}
